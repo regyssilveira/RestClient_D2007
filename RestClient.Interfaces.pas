@@ -29,6 +29,8 @@ type
     function AddPart(const AName, AFileName: string; AStream: TStream; const AContentType: string = ''; const ACharset: string = ''): IRestRequest; overload;
     function Execute(AMethod: THTTPMethod): IRestResponse;
     function GetFullUrl: string;
+    function IgnoreToken: IRestRequest;
+    function ShouldIgnoreToken: Boolean;
     
     // Data Accessors for Client
     function GetHeaders: TStrings;
@@ -43,6 +45,7 @@ type
     ['{10000000-0000-0000-0000-000000000003}']
     function GetAccessToken: string;
     procedure ForceRefresh;
+    procedure SetClient(const AClient: IRestClient);
   end;
 
   IRestClient = interface

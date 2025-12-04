@@ -34,7 +34,10 @@ begin
   inherited Create;
   FBaseURL := ABaseURL;
   if (ATokenEndpoint <> '') and (AClientId <> '') then
-    FTokenManager := TOAuthTokenManager.Create(ATokenEndpoint, AClientId, AClientSecret)
+  begin
+    FTokenManager := TOAuthTokenManager.Create(ATokenEndpoint, AClientId, AClientSecret);
+    FTokenManager.SetClient(Self);
+  end
   else
     FTokenManager := nil;
     
@@ -72,31 +75,7 @@ begin
   FBaseURL := AValue;
 end;
 
-procedure TRestClient.PrepareRequest(ARequest: TRestRequest);
-var
-  I: Integer;
-  LHeaders: TStrings;
-begin
-  FIdHTTP.Request.Clear;
-  FIdHTTP.Request.CustomHeaders.Clear;
-  
-  // Add Headers
-  LHeaders := ARequest.Headers;
-  for I := 0 to LHeaders.Count - 1 do
-  begin
-    FIdHTTP.Request.CustomHeaders.Add(LHeaders[I]);
-  end;
 
-  // Add Auth Token if available
-  if Assigned(FTokenManager) then
-  begin
-    FIdHTTP.Request.CustomHeaders.Values['Authorization'] := 'Bearer ' + FTokenManager.GetAccessToken;
-  end;
-  
-  // Content Type
-  if ARequest.BodyContentType <> '' then
-    FIdHTTP.Request.ContentType := ARequest.BodyContentType;
-end;
 
 function TRestClient.ExecuteRequest(ARequest: IRestRequest; AMethod: THTTPMethod): IRestResponse;
 var
@@ -127,7 +106,7 @@ begin
   for I := 0 to ARequest.GetHeaders.Count - 1 do
     FIdHTTP.Request.CustomHeaders.Add(ARequest.GetHeaders[I]);
 
-  if Assigned(FTokenManager) then
+  if Assigned(FTokenManager) and (not ARequest.ShouldIgnoreToken) then
     FIdHTTP.Request.CustomHeaders.Values['Authorization'] := 'Bearer ' + FTokenManager.GetAccessToken;
   
   if ARequest.GetBodyContentType <> '' then

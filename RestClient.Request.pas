@@ -33,6 +33,7 @@ type
     FBody: string;
     FBodyContentType: string;
     FParts: TList;
+    FIgnoreToken: Boolean;
   public
     constructor Create(AClient: IRestClient);
     destructor Destroy; override;
@@ -46,6 +47,8 @@ type
     function AddPart(const AName, AFileName: string; AStream: TStream; const AContentType: string = ''; const ACharset: string = ''): IRestRequest; overload;
     function Execute(AMethod: THTTPMethod): IRestResponse;
     function GetFullUrl: string;
+    function IgnoreToken: IRestRequest;
+    function ShouldIgnoreToken: Boolean;
 
     // Interface implementations
     function GetHeaders: TStrings;
@@ -114,6 +117,7 @@ begin
   FParts := TList.Create;
   FBody := '';
   FBodyContentType := '';
+  FIgnoreToken := False;
 end;
 
 destructor TRestRequest.Destroy;
@@ -179,6 +183,13 @@ end;
 
 function TRestRequest.GetFullUrl: string;
 begin
+  // If Resource is already an absolute URL, return it directly
+  if (Pos('http://', LowerCase(FResource)) = 1) or (Pos('https://', LowerCase(FResource)) = 1) then
+  begin
+    Result := FResource;
+    Exit;
+  end;
+
   Result := FClient.BaseURL;
   if (Result <> '') and (Result[Length(Result)] <> '/') and (FResource <> '') and (FResource[1] <> '/') then
     Result := Result + '/';
@@ -213,6 +224,17 @@ end;
 function TRestRequest.GetResource: string;
 begin
   Result := FResource;
+end;
+
+function TRestRequest.IgnoreToken: IRestRequest;
+begin
+  FIgnoreToken := True;
+  Result := Self;
+end;
+
+function TRestRequest.ShouldIgnoreToken: Boolean;
+begin
+  Result := FIgnoreToken;
 end;
 
 end.
