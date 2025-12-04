@@ -1,0 +1,23 @@
+# Delphi
+*.dcu
+*.ddp
+*.dsk
+*.identcache
+*.local
+*.map
+*.tvsconfig
+*.drc
+__history/
+ModelSupport_*/
+
+# Binary
+*.exe
+*.dll
+*.bpl
+*.dcp
+*.so
+*.apk
+
+# Backup
+*.~*
+*.bak
