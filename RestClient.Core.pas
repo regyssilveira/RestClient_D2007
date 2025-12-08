@@ -120,11 +120,14 @@ begin
   FIdHTTP.Request.Clear;
   FIdHTTP.Request.CustomHeaders.Clear;
 
-  if Trim(FClientId) <> '' then
-    FIdHTTP.Request.Password := FClientId;
+  if FTokenManager = nil then
+  begin
+    if Trim(FClientId) <> '' then
+      FIdHTTP.Request.Username := FClientId;
 
-  if Trim(FClientSecret) <> '' then
-    FIdHTTP.Request.Username := FClientSecret;
+    if Trim(FClientSecret) <> '' then
+      FIdHTTP.Request.Password := FClientSecret;
+  end;
 
   FIdHTTP.Request.UserAgent := 'InterCredPJ (compatible; Delphi 2007)';
   FIdHTTP.Request.Accept    := 'application/json';//'text/html,application/json,x-www-form-urlencoded,*/*';

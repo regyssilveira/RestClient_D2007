@@ -29,7 +29,7 @@ type
 implementation
 
 uses
-  SuperObject;
+  SuperObject, IdURI;
 
 { TOAuthTokenManager }
 
@@ -75,18 +75,21 @@ var
   LResponse: IRestResponse;
   LJson: ISuperObject;
   LExpiresIn: Integer;
+  LBody: string;
 begin
   LClient := GetClient;
   if LClient = nil then
-    raise Exception.Create('RestClient n„o foi linkado corretamente ao token manager');
+    raise Exception.Create('RestClient n√£o foi linkado corretamente ao token manager');
 
   try
+    LBody := 'grant_type=client_credentials'
+           + '&client_id=' + TIdURI.ParamsEncode(FClientId)
+           + '&client_secret=' + TIdURI.ParamsEncode(FClientSecret);
+
     LResponse := LClient.CreateRequest
       .Resource(FTokenEndpoint)
       .IgnoreToken
-      .AddParam('grant_type',    'client_credentials')
-      //.AddPart('client_id',     FClientId)
-      //.AddPart('client_secret', FClientSecret)
+      .AddBody(LBody, 'application/x-www-form-urlencoded')
       .Execute(rmPOST);
       
     if LResponse.StatusCode = 200 then
@@ -103,10 +106,10 @@ begin
         FExpiresAt := IncSecond(Now, LExpiresIn - 10);
       end
       else
-        raise Exception.Create('Json de resposta inv·lido');
+        raise Exception.Create('Json de resposta inv√°lido');
     end
     else
-      raise Exception.Create('Falha ao obter o token de acesso. Status: ' + IntToStr(LResponse.StatusCode) + ', Conte˙do: ' + LResponse.Content);
+      raise Exception.Create('Falha ao obter o token de acesso. Status: ' + IntToStr(LResponse.StatusCode) + ', Conte√∫do: ' + LResponse.Content);
 
   except
     on E: Exception do
@@ -115,5 +118,3 @@ begin
 end;
 
 end.
-
-
