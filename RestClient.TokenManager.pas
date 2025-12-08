@@ -3,7 +3,10 @@ unit RestClient.TokenManager;
 interface
 
 uses
-  Classes, SysUtils, DateUtils, RestClient.Interfaces;
+  Classes,
+  SysUtils,
+  DateUtils,
+  RestClient.Interfaces;
 
 type
   TOAuthTokenManager = class(TInterfacedObject, IOAuthTokenManager)
@@ -13,7 +16,7 @@ type
     FClientSecret: string;
     FAccessToken: string;
     FExpiresAt: TDateTime;
-    FClient: Pointer; // Weak reference to IRestClient
+    FClient: IRestClient;
     function GetClient: IRestClient;
     procedure RequestNewToken;
   public
@@ -55,13 +58,13 @@ end;
 
 procedure TOAuthTokenManager.SetClient(const AClient: IRestClient);
 begin
-  FClient := Pointer(AClient);
+  FClient := AClient;
 end;
 
 function TOAuthTokenManager.GetClient: IRestClient;
 begin
   if FClient <> nil then
-    Result := IRestClient(FClient)
+    Result := FClient
   else
     Result := nil;
 end;
@@ -75,15 +78,15 @@ var
 begin
   LClient := GetClient;
   if LClient = nil then
-    raise Exception.Create('RestClient not assigned to TokenManager');
+    raise Exception.Create('RestClient não foi linkado corretamente ao token manager');
 
   try
     LResponse := LClient.CreateRequest
       .Resource(FTokenEndpoint)
-      .IgnoreToken // Important to prevent recursion
-      .AddParam('grant_type', 'client_credentials')
-      .AddParam('client_id', FClientId)
-      .AddParam('client_secret', FClientSecret)
+      .IgnoreToken
+      .AddParam('grant_type',    'client_credentials')
+      //.AddPart('client_id',     FClientId)
+      //.AddPart('client_secret', FClientSecret)
       .Execute(rmPOST);
       
     if LResponse.StatusCode = 200 then
@@ -100,15 +103,17 @@ begin
         FExpiresAt := IncSecond(Now, LExpiresIn - 10);
       end
       else
-        raise Exception.Create('Invalid JSON response from token endpoint');
+        raise Exception.Create('Json de resposta inválido');
     end
     else
-      raise Exception.Create('Failed to obtain access token. Status: ' + IntToStr(LResponse.StatusCode) + ', Content: ' + LResponse.Content);
-      
+      raise Exception.Create('Falha ao obter o token de acesso. Status: ' + IntToStr(LResponse.StatusCode) + ', Conteúdo: ' + LResponse.Content);
+
   except
     on E: Exception do
-      raise Exception.Create('Failed to obtain access token: ' + E.Message);
+      raise Exception.Create('Falha ao obter o token de acesso: ' + E.Message);
   end;
 end;
 
 end.
+
+

@@ -3,17 +3,32 @@ unit RestClient.Core;
 interface
 
 uses
-  Classes, SysUtils, IdHTTP, IdSSLOpenSSL, IdMultipartFormData,
-  RestClient.Interfaces, RestClient.TokenManager, RestClient.Response, RestClient.Request;
+  Classes,
+  SysUtils,
+  Dialogs,
+
+  superobject,
+
+  IdHTTP,
+  IdCompressorZLib,
+  IdSSLOpenSSL,
+  IdStack,
+  IdMultipartFormData,
+
+  RestClient.Interfaces,
+  RestClient.TokenManager,
+  RestClient.Response,
+  RestClient.Request;
 
 type
   TRestClient = class(TInterfacedObject, IRestClient)
   private
     FBaseURL: string;
+    FClientId: String;
+    FClientSecret: String;
     FTokenManager: IOAuthTokenManager;
     FIdHTTP: TIdHTTP;
     FSSLHandler: TIdSSLIOHandlerSocketOpenSSL;
-    procedure ConfigureSSL;
   public
     constructor Create(const ABaseURL: string; const ATokenEndpoint, AClientId, AClientSecret: string);
     destructor Destroy; override;
@@ -23,6 +38,7 @@ type
     procedure SetBaseURL(const AValue: string);
     
     function ExecuteRequest(ARequest: IRestRequest; AMethod: THTTPMethod): IRestResponse;
+    function UpdateToken: String;
   end;
 
 implementation
@@ -32,7 +48,11 @@ implementation
 constructor TRestClient.Create(const ABaseURL: string; const ATokenEndpoint, AClientId, AClientSecret: string);
 begin
   inherited Create;
-  FBaseURL := ABaseURL;
+
+  FBaseURL      := ABaseURL;
+  FClientId     := AClientId;
+  FClientSecret := AClientSecret;
+
   if (ATokenEndpoint <> '') and (AClientId <> '') then
   begin
     FTokenManager := TOAuthTokenManager.Create(ATokenEndpoint, AClientId, AClientSecret);
@@ -42,9 +62,18 @@ begin
     FTokenManager := nil;
     
   FIdHTTP := TIdHTTP.Create(nil);
-  FSSLHandler := TIdSSLIOHandlerSocketOpenSSL.Create(nil);
-  FIdHTTP.IOHandler := FSSLHandler;
-  ConfigureSSL;
+  FSSLHandler := TIdSSLIOHandlerSocketOpenSSL.Create(FIdHTTP);
+
+  // SSSL
+  FSSLHandler.SSLOptions.Method      := sslvTLSv1_2;
+  FSSLHandler.SSLOptions.Mode        := sslmClient;
+  FSSLHandler.SSLOptions.VerifyMode  := [];
+  FSSLHandler.SSLOptions.SSLVersions := [sslvSSLv2, sslvSSLv23, sslvSSLv3, sslvTLSv1, sslvTLSv1_1, sslvTLSv1_2];
+
+  // client http indy
+  FIdHTTP.IOHandler                       := FSSLHandler;
+  FIdHTTP.HandleRedirects                 := True;
+  FIdHTTP.Request.CustomHeaders.FoldLines := False;
 end;
 
 destructor TRestClient.Destroy;
@@ -52,12 +81,6 @@ begin
   FSSLHandler.Free;
   FIdHTTP.Free;
   inherited;
-end;
-
-procedure TRestClient.ConfigureSSL;
-begin
-  FSSLHandler.SSLOptions.Method := sslvTLSv1_2;
-  FSSLHandler.SSLOptions.Mode := sslmClient;
 end;
 
 function TRestClient.CreateRequest: IRestRequest;
@@ -75,7 +98,13 @@ begin
   FBaseURL := AValue;
 end;
 
-
+function TRestClient.UpdateToken: String;
+begin
+  if Assigned(FTokenManager) then
+    Result := FTokenManager.GetAccessToken
+  else
+    Result := '';
+end;
 
 function TRestClient.ExecuteRequest(ARequest: IRestRequest; AMethod: THTTPMethod): IRestResponse;
 var
@@ -88,27 +117,26 @@ var
   LParts: TList;
   LParams: TStrings;
 begin
-  // PrepareRequest(ARequest); // PrepareRequest expects TRestRequest in implementation, need to update it too or inline it.
-  // Let's inline/update PrepareRequest logic or cast if we were sure, but we are avoiding cast.
-  // Actually I updated PrepareRequest signature in interface but not implementation above? 
-  // Wait, I updated PrepareRequest implementation to take TRestRequest in the previous tool call? 
-  // No, I kept it as TRestRequest in the replacement content of the previous call. 
-  // I need to change PrepareRequest to take IRestRequest.
-  
-  // Let's fix PrepareRequest first in this block or assume I will fix it. 
-  // I will fix PrepareRequest signature in the next tool call if I missed it.
-  // Actually, let's just do the logic here properly.
-  
   FIdHTTP.Request.Clear;
   FIdHTTP.Request.CustomHeaders.Clear;
-  
+
+  if Trim(FClientId) <> '' then
+    FIdHTTP.Request.Password := FClientId;
+
+  if Trim(FClientSecret) <> '' then
+    FIdHTTP.Request.Username := FClientSecret;
+
+  FIdHTTP.Request.UserAgent := 'InterCredPJ (compatible; Delphi 2007)';
+  FIdHTTP.Request.Accept    := 'application/json';//'text/html,application/json,x-www-form-urlencoded,*/*';
+  FIdHTTP.Request.CharSet   := 'utf-8';
+
   // Add Headers
   for I := 0 to ARequest.GetHeaders.Count - 1 do
     FIdHTTP.Request.CustomHeaders.Add(ARequest.GetHeaders[I]);
 
   if Assigned(FTokenManager) and (not ARequest.ShouldIgnoreToken) then
-    FIdHTTP.Request.CustomHeaders.Values['Authorization'] := 'Bearer ' + FTokenManager.GetAccessToken;
-  
+    FIdHTTP.Request.CustomHeaders.Values['x-api-token'] := UTF8Encode(FTokenManager.GetAccessToken);
+
   if ARequest.GetBodyContentType <> '' then
     FIdHTTP.Request.ContentType := ARequest.GetBodyContentType;
   
@@ -148,7 +176,7 @@ begin
                   if LPart.FileName <> '' then
                     LMultiPart.AddFormField(LPart.Name, LPart.ContentType, LPart.Charset, LPart.Stream, LPart.FileName)
                   else
-                    LMultiPart.AddFormField(LPart.Name, LPart.Value);
+                    LMultiPart.AddFormField(LPart.Name, UTF8Encode(LPart.Value));
                 end;
                 FIdHTTP.Post(LUrl, LMultiPart, LResponseStream);
               finally
@@ -199,3 +227,5 @@ begin
 end;
 
 end.
+
+

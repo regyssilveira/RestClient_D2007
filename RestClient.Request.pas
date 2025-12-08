@@ -3,7 +3,12 @@ unit RestClient.Request;
 interface
 
 uses
-  Classes, SysUtils, RestClient.Interfaces, SuperObject;
+  Classes,
+  SysUtils,
+  Dialogs,
+
+  RestClient.Interfaces,
+  SuperObject;
 
 type
   TRequestPart = class
@@ -22,7 +27,7 @@ type
 
   TRestRequest = class(TInterfacedObject, IRestRequest)
   private
-    FClient: IRestClient; // Weak reference conceptually, but interface keeps it alive. 
+    FClient: IRestClient; // Weak reference conceptually, but interface keeps it alive.
                           // In D2007, we need to be careful about circular ref if Client holds Request.
                           // Here Request is created by Client, so Client should probably not hold a ref to Request 
                           // or we use a weak pointer if needed. 
@@ -46,6 +51,7 @@ type
     function AddPart(const AName, AValue: string): IRestRequest; overload;
     function AddPart(const AName, AFileName: string; AStream: TStream; const AContentType: string = ''; const ACharset: string = ''): IRestRequest; overload;
     function Execute(AMethod: THTTPMethod): IRestResponse;
+    function UpdateToken: String;
     function GetFullUrl: string;
     function IgnoreToken: IRestRequest;
     function ShouldIgnoreToken: Boolean;
@@ -235,6 +241,11 @@ end;
 function TRestRequest.ShouldIgnoreToken: Boolean;
 begin
   Result := FIgnoreToken;
+end;
+
+function TRestRequest.UpdateToken: String;
+begin
+  Result := FClient.UpdateToken;
 end;
 
 end.

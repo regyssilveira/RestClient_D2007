@@ -31,6 +31,7 @@ type
     function GetFullUrl: string;
     function IgnoreToken: IRestRequest;
     function ShouldIgnoreToken: Boolean;
+    function UpdateToken: String;
     
     // Data Accessors for Client
     function GetHeaders: TStrings;
@@ -41,22 +42,23 @@ type
     function GetResource: string;
   end;
 
-  IOAuthTokenManager = interface
-    ['{10000000-0000-0000-0000-000000000003}']
-    function GetAccessToken: string;
-    procedure ForceRefresh;
-    procedure SetClient(const AClient: IRestClient);
-  end;
-
   IRestClient = interface
     ['{10000000-0000-0000-0000-000000000004}']
     function CreateRequest: IRestRequest;
     function GetBaseURL: string;
     procedure SetBaseURL(const AValue: string);
     function ExecuteRequest(ARequest: IRestRequest; AMethod: THTTPMethod): IRestResponse;
+    function UpdateToken: String;
     property BaseURL: string read GetBaseURL write SetBaseURL;
   end;
 
+  IOAuthTokenManager = interface
+    ['{10000000-0000-0000-0000-000000000003}']
+    function GetAccessToken: string;
+    procedure ForceRefresh;
+    procedure SetClient(const AClient: IRestClient);
+  end;
+  
 implementation
 
 end.
