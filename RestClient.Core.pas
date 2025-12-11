@@ -147,6 +147,7 @@ function TRestClient.ExecuteRequestWinInet(ARequest: IRestRequest; AMethod: THTT
 var
   hInternet, hConnect, hRequest: Pointer;
   LRetries: Integer;
+  LUser, LPass: PChar;
   LResponseBuffer: TStringStream;
   LBytesRead: DWORD;
   LBuffer: array[0..4095] of AnsiChar;
@@ -274,9 +275,17 @@ begin
       if hInternet = nil then RaiseLastOSError;
       
       try
+        LUser := nil;
+        if Trim(FClientId) <> '' then
+          LUser := PChar(FClientId);
+          
+        LPass := nil;
+        if Trim(FClientSecret) <> '' then
+          LPass := PChar(FClientSecret);
+
         hConnect := InternetConnect(hInternet, PChar(LURLHost), LURLPort, 
-                                    nil, 
-                                    nil,
+                                    LUser, 
+                                    LPass,
                                     INTERNET_SERVICE_HTTP, 0, 0);
                                     
         if hConnect = nil then
