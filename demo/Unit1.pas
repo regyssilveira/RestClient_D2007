@@ -40,7 +40,7 @@ var
 begin
   LClient := TRestClient.Create(
     'https://api.cre.uatesb.local/api/ce-core-banking-service/v1',
-    rtIndy,
+    rtWinInet,
     'https://api.cre.uatesb.local/oauth/token',
     'srvc.ce.core.banking.service.uat',
     'K>9.V=n20T9vo!bn0>bbn'
