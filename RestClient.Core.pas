@@ -146,6 +146,7 @@ end;
 function TRestClient.ExecuteRequestWinInet(ARequest: IRestRequest; AMethod: THTTPMethod): IRestResponse;
 var
   hInternet, hConnect, hRequest: Pointer;
+  LRetries: Integer;
   LResponseBuffer: TStringStream;
   LBytesRead: DWORD;
   LBuffer: array[0..4095] of AnsiChar;
@@ -328,8 +329,24 @@ begin
              end;
              
              try
-               if not HttpSendRequest(hRequest, nil, 0, LPPostBuffer, LPostSize) then
-                 RaiseLastOSError;
+                LRetries := 0;
+                while True do
+                begin
+                  if HttpSendRequest(hRequest, nil, 0, LPPostBuffer, LPostSize) then
+                    Break;
+                  
+                  // ERROR_INTERNET_CLIENT_AUTH_CERT_NEEDED (12044)
+                  if (GetLastError = 12044) and (LRetries = 0) then
+                  begin
+                    // INTERNET_OPTION_SECURITY_SELECT_CLIENT_CERT (87)
+                    // Select "no certificate" by passing nil/0 and retry
+                    InternetSetOption(hRequest, 87, nil, 0);
+                    Inc(LRetries);
+                    Continue;
+                  end;
+                  
+                  RaiseLastOSError;
+                end;
              finally
                if Assigned(LPPostBuffer) then
                  FreeMem(LPPostBuffer);
