@@ -55,7 +55,7 @@ type
 implementation
 
 uses
-  StrUtils;
+  StrUtils, EncdDecd;
 
 { TRestClient }
 
@@ -314,7 +314,12 @@ begin
                LHeaders := LHeaders + 'x-api-token: ' + UTF8Encode(FTokenManager.GetAccessToken) + #13#10
              else
              begin
-                // if Assigned(FTokenManager) then ... else ...
+                // Basic Auth if Token is not used and Credentials are present
+                if (Trim(FClientId) <> '') and (Trim(FClientSecret) <> '') then
+                begin
+                   LHeaders := LHeaders + 'Authorization: Basic ' + 
+                     EncodeString(Trim(FClientId) + ':' + Trim(FClientSecret)) + #13#10;
+                end;
              end;
 
              if Assigned(LMultiPart) then
