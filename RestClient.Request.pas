@@ -51,7 +51,7 @@ type
     function AddPart(const AName, AValue: string): IRestRequest; overload;
     function AddPart(const AName, AFileName: string; AStream: TStream; const AContentType: string = ''; const ACharset: string = ''): IRestRequest; overload;
     function Execute(AMethod: THTTPMethod): IRestResponse;
-    function UpdateToken: String;
+    function ObterToken: String;
     function GetFullUrl: string;
     function IgnoreToken: IRestRequest;
     function ShouldIgnoreToken: Boolean;
@@ -243,9 +243,9 @@ begin
   Result := FIgnoreToken;
 end;
 
-function TRestRequest.UpdateToken: String;
+function TRestRequest.ObterToken: String;
 begin
-  Result := FClient.UpdateToken;
+  Result := FClient.ObterToken;
 end;
 
 end.

@@ -11,6 +11,7 @@ type
     FStatusCode: Integer;
     FContent: string;
     FHeaders: TStringList;
+    function GetHeaders: String;
   public
     constructor Create(AStatusCode: Integer; const AContent: string; AHeaders: TStrings);
     destructor Destroy; override;
@@ -48,6 +49,11 @@ end;
 function TRestResponse.GetHeader(const AName: string): string;
 begin
   Result := FHeaders.Values[AName];
+end;
+
+function TRestResponse.GetHeaders: String;
+begin
+  Result := FHeaders.Text;
 end;
 
 function TRestResponse.GetStatusCode: Integer;

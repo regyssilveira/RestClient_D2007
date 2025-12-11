@@ -14,8 +14,10 @@ type
     function GetContent: string;
     function GetHeader(const AName: string): string;
     function ContentAsJson: ISuperObject;
+    function GetHeaders: String;
     property StatusCode: Integer read GetStatusCode;
     property Content: string read GetContent;
+    property Headers: String read GetHeaders;
   end;
 
   IRestRequest = interface
@@ -31,7 +33,7 @@ type
     function GetFullUrl: string;
     function IgnoreToken: IRestRequest;
     function ShouldIgnoreToken: Boolean;
-    function UpdateToken: String;
+    function ObterToken: String;
     
     // Data Accessors for Client
     function GetHeaders: TStrings;
@@ -48,7 +50,7 @@ type
     function GetBaseURL: string;
     procedure SetBaseURL(const AValue: string);
     function ExecuteRequest(ARequest: IRestRequest; AMethod: THTTPMethod): IRestResponse;
-    function UpdateToken: String;
+    function ObterToken: String;
     property BaseURL: string read GetBaseURL write SetBaseURL;
   end;
 

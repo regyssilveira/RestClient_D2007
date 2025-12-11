@@ -29,8 +29,9 @@ type
     FTokenManager: IOAuthTokenManager;
     FIdHTTP: TIdHTTP;
     FSSLHandler: TIdSSLIOHandlerSocketOpenSSL;
+    function SSLVerifyPeer(Certificate: TIdX509; AOk: Boolean; ADepth, AError: Integer): Boolean;
   public
-    constructor Create(const ABaseURL: string; const ATokenEndpoint, AClientId, AClientSecret: string);
+    constructor Create(const ABaseURL: string; const ATokenEndpoint: String = ''; const AClientId: String = ''; const AClientSecret: string = '');
     destructor Destroy; override;
 
     function CreateRequest: IRestRequest;
@@ -38,10 +39,13 @@ type
     procedure SetBaseURL(const AValue: string);
     
     function ExecuteRequest(ARequest: IRestRequest; AMethod: THTTPMethod): IRestResponse;
-    function UpdateToken: String;
+    function ObterToken: String;
   end;
 
 implementation
+
+uses
+  StrUtils;
 
 { TRestClient }
 
@@ -67,13 +71,14 @@ begin
   // SSSL
   FSSLHandler.SSLOptions.Method      := sslvTLSv1_2;
   FSSLHandler.SSLOptions.Mode        := sslmClient;
+  FSSLHandler.SSLOptions.SSLVersions := [sslvTLSv1_2]; //sslvSSLv2, sslvSSLv23, sslvSSLv3, sslvTLSv1, sslvTLSv1_1,
   FSSLHandler.SSLOptions.VerifyMode  := [];
-  FSSLHandler.SSLOptions.SSLVersions := [sslvSSLv2, sslvSSLv23, sslvSSLv3, sslvTLSv1, sslvTLSv1_1, sslvTLSv1_2];
+  FSSLHandler.SSLOptions.VerifyDepth := 0;
+  FSSLHandler.OnVerifyPeer           := SSLVerifyPeer;
 
   // client http indy
-  FIdHTTP.IOHandler                       := FSSLHandler;
-  FIdHTTP.HandleRedirects                 := True;
-  FIdHTTP.Request.CustomHeaders.FoldLines := False;
+  FIdHTTP.IOHandler       := FSSLHandler;
+  FIdHTTP.HandleRedirects := True;
 end;
 
 destructor TRestClient.Destroy;
@@ -81,6 +86,11 @@ begin
   FSSLHandler.Free;
   FIdHTTP.Free;
   inherited;
+end;
+
+function TRestClient.SSLVerifyPeer(Certificate: TIdX509; AOk: Boolean; ADepth, AError: Integer): Boolean;
+begin
+  Result := True;
 end;
 
 function TRestClient.CreateRequest: IRestRequest;
@@ -98,7 +108,7 @@ begin
   FBaseURL := AValue;
 end;
 
-function TRestClient.UpdateToken: String;
+function TRestClient.ObterToken: String;
 begin
   if Assigned(FTokenManager) then
     Result := FTokenManager.GetAccessToken
@@ -120,18 +130,16 @@ begin
   FIdHTTP.Request.Clear;
   FIdHTTP.Request.CustomHeaders.Clear;
 
-  if FTokenManager = nil then
-  begin
-    if Trim(FClientId) <> '' then
-      FIdHTTP.Request.Username := FClientId;
+  if Trim(FClientId) <> '' then
+    FIdHTTP.Request.Username := FClientId;
 
-    if Trim(FClientSecret) <> '' then
-      FIdHTTP.Request.Password := FClientSecret;
-  end;
+  if Trim(FClientSecret) <> '' then
+    FIdHTTP.Request.Password := FClientSecret;
 
-  FIdHTTP.Request.UserAgent := 'InterCredPJ (compatible; Delphi 2007)';
-  FIdHTTP.Request.Accept    := 'application/json';//'text/html,application/json,x-www-form-urlencoded,*/*';
-  FIdHTTP.Request.CharSet   := 'utf-8';
+  FIdHTTP.Request.CustomHeaders.FoldLines := False;
+  FIdHTTP.Request.UserAgent               := 'InterCredPJ (compatible; Delphi 2007)';
+  FIdHTTP.Request.Accept                  := 'application/json';//'text/html,application/json,x-www-form-urlencoded,*/*';
+  FIdHTTP.Request.CharSet                 := 'utf-8';
 
   // Add Headers
   for I := 0 to ARequest.GetHeaders.Count - 1 do
@@ -201,11 +209,11 @@ begin
         rmPUT:
           begin
              LBodyStream := TStringStream.Create(ARequest.GetBody);
-              try
-                FIdHTTP.Put(LUrl, LBodyStream, LResponseStream);
-              finally
-                LBodyStream.Free;
-              end;
+             try
+               FIdHTTP.Put(LUrl, LBodyStream, LResponseStream);
+             finally
+               LBodyStream.Free;
+             end;
           end;
           
         rmDELETE:
@@ -219,8 +227,13 @@ begin
     except
       on E: EIdHTTPProtocolException do
       begin
-        Result := TRestResponse.Create(FIdHTTP.ResponseCode, E.ErrorMessage, FIdHTTP.Response.RawHeaders);
+        Result := TRestResponse.Create(
+          FIdHTTP.ResponseCode,
+          IfThen(Trim(FIdHTTP.ResponseText) = '', E.ErrorMessage, FIdHTTP.ResponseText),
+          FIdHTTP.Response.RawHeaders
+        );
       end;
+
       on E: Exception do
         raise;
     end;

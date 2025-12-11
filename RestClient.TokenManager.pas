@@ -1,4 +1,4 @@
-unit RestClient.TokenManager;
+﻿unit RestClient.TokenManager;
 
 interface
 
@@ -53,6 +53,7 @@ function TOAuthTokenManager.GetAccessToken: string;
 begin
   if (FAccessToken = '') or (Now >= FExpiresAt) then
     RequestNewToken;
+
   Result := FAccessToken;
 end;
 
@@ -82,38 +83,37 @@ begin
     raise Exception.Create('RestClient não foi linkado corretamente ao token manager');
 
   try
-    LBody := 'grant_type=client_credentials'
-           + '&client_id=' + TIdURI.ParamsEncode(FClientId)
-           + '&client_secret=' + TIdURI.ParamsEncode(FClientSecret);
-
     LResponse := LClient.CreateRequest
       .Resource(FTokenEndpoint)
       .IgnoreToken
-      .AddBody(LBody, 'application/x-www-form-urlencoded')
+      .AddParam('grant_type', 'client_credentials')
       .Execute(rmPOST);
-      
+
     if LResponse.StatusCode = 200 then
     begin
       LJson := LResponse.ContentAsJson;
       if Assigned(LJson) then
       begin
         FAccessToken := LJson.S['access_token'];
-        LExpiresIn := LJson.I['expires_in'];
-        
+        LExpiresIn   := LJson.I['expires_in'];
+
         if LExpiresIn <= 0 then
           LExpiresIn := 3600;
-          
+
         FExpiresAt := IncSecond(Now, LExpiresIn - 10);
       end
       else
-        raise Exception.Create('Json de resposta inválido');
+        raise Exception.Create('Json de resposta inválido: ' + LResponse.Content);
     end
     else
-      raise Exception.Create('Falha ao obter o token de acesso. Status: ' + IntToStr(LResponse.StatusCode) + ', Conteúdo: ' + LResponse.Content);
+      raise Exception.Create(
+        'Status: ' + IntToStr(LResponse.StatusCode) + sLineBreak +
+        'Conteúdo: ' + LResponse.Content + sLineBreak +
+        'Headers: ' + sLineBreak + LResponse.Headers);
 
   except
     on E: Exception do
-      raise Exception.Create('Falha ao obter o token de acesso: ' + E.Message);
+      raise Exception.Create('Falha ao obter o token de acesso: ' + sLineBreak + E.Message);
   end;
 end;
 
