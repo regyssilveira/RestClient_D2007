@@ -36,6 +36,7 @@ type
     FType: TRestClientType;
 
     function SSLVerifyPeer(Certificate: TIdX509; AOk: Boolean; ADepth, AError: Integer): Boolean;
+    function BuildFullUrl(const AUrl: string; AParams: TStrings): string;
     
     // Internal execution methods
     function ExecuteRequestIndy(ARequest: IRestRequest; AMethod: THTTPMethod): IRestResponse;
@@ -58,6 +59,9 @@ uses
   StrUtils, EncdDecd;
 
 { TRestClient }
+
+const
+  C_USER_AGENT = 'InterCredPJ (compatible; Delphi 2007)';
 
 constructor TRestClient.Create(const ABaseURL: string; AType: TRestClientType = rtIndy; const ATokenEndpoint: String = ''; const AClientId: String = ''; const AClientSecret: string = '');
 begin
@@ -108,6 +112,26 @@ end;
 function TRestClient.SSLVerifyPeer(Certificate: TIdX509; AOk: Boolean; ADepth, AError: Integer): Boolean;
 begin
   Result := True;
+end;
+
+function TRestClient.BuildFullUrl(const AUrl: string; AParams: TStrings): string;
+var
+  I: Integer;
+begin
+  Result := AUrl;
+  if (AParams <> nil) and (AParams.Count > 0) then
+  begin
+    if Pos('?', Result) = 0 then
+      Result := Result + '?'
+    else
+      Result := Result + '&';
+
+    for I := 0 to AParams.Count - 1 do
+    begin
+      if I > 0 then Result := Result + '&';
+      Result := Result + AParams[I];
+    end;
+  end;
 end;
 
 function TRestClient.CreateRequest: IRestRequest;
@@ -182,22 +206,7 @@ begin
   try
     LRawHeaders.Text := '';
     try
-      LFullUrl := ARequest.GetFullUrl;
-
-      LParams := ARequest.GetParams;
-      if LParams.Count > 0 then
-      begin
-        if Pos('?', LFullUrl) = 0 then
-          LFullUrl := LFullUrl + '?'
-        else
-          LFullUrl := LFullUrl + '&';
-
-        for I := 0 to LParams.Count - 1 do
-        begin
-          if I > 0 then LFullUrl := LFullUrl + '&';
-          LFullUrl := LFullUrl + LParams[I];
-        end;
-      end;
+      LFullUrl := BuildFullUrl(ARequest.GetFullUrl, ARequest.GetParams);
 
       LTempUrl := LFullUrl;
       LIsSSL := False;
@@ -270,7 +279,7 @@ begin
           end;
       end;
 
-      hInternet := InternetOpen(PChar('InterCredPJ (compatible; Delphi 2007)'),
+      hInternet := InternetOpen(PChar(C_USER_AGENT),
                                 INTERNET_OPEN_TYPE_PRECONFIG, nil, nil, 0);
       if hInternet = nil then RaiseLastOSError;
       
@@ -439,7 +448,7 @@ begin
     FIdHTTP.Request.Password := FClientSecret;
 
   FIdHTTP.Request.CustomHeaders.FoldLines := False;
-  FIdHTTP.Request.UserAgent               := 'InterCredPJ (compatible; Delphi 2007)';
+  FIdHTTP.Request.UserAgent               := C_USER_AGENT;
   FIdHTTP.Request.Accept                  := 'application/json';//'text/html,application/json,x-www-form-urlencoded,*/*';
   FIdHTTP.Request.CharSet                 := 'utf-8';
 
@@ -453,22 +462,7 @@ begin
   if ARequest.GetBodyContentType <> '' then
     FIdHTTP.Request.ContentType := ARequest.GetBodyContentType;
   
-  LUrl := ARequest.GetFullUrl;
-  
-  LParams := ARequest.GetParams;
-  if LParams.Count > 0 then
-  begin
-    if Pos('?', LUrl) = 0 then
-      LUrl := LUrl + '?'
-    else
-      LUrl := LUrl + '&';
-
-    for I := 0 to LParams.Count - 1 do
-    begin
-        if I > 0 then LUrl := LUrl + '&';
-        LUrl := LUrl + LParams[I];
-    end;
-  end;
+  LUrl := BuildFullUrl(ARequest.GetFullUrl, ARequest.GetParams);
 
   LResponseStream := TStringStream.Create('');
   try
