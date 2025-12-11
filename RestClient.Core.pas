@@ -6,6 +6,7 @@ uses
   Classes,
   SysUtils,
   Dialogs,
+  Windows,
   WinInet, 
 
   superobject,
@@ -22,6 +23,7 @@ uses
   RestClient.Request;
 
 type
+  HINTERNET = Pointer;
   TRestClientType = (rtIndy, rtWinInet);
 
   TRestClient = class(TInterfacedObject, IRestClient)
@@ -40,7 +42,7 @@ type
     function ExecuteRequestIndy(ARequest: IRestRequest; AMethod: THTTPMethod): IRestResponse;
     function ExecuteRequestWinInet(ARequest: IRestRequest; AMethod: THTTPMethod): IRestResponse;
   public
-    constructor Create(const ABaseURL: string; const ATokenEndpoint: String = ''; const AClientId: String = ''; const AClientSecret: string = ''; AType: TRestClientType = rtIndy);
+    constructor Create(const ABaseURL: string; AType: TRestClientType = rtIndy; const ATokenEndpoint: String = ''; const AClientId: String = ''; const AClientSecret: string = '');
     destructor Destroy; override;
 
     function CreateRequest: IRestRequest;
@@ -58,7 +60,7 @@ uses
 
 { TRestClient }
 
-constructor TRestClient.Create(const ABaseURL: string; const ATokenEndpoint, AClientId, AClientSecret: string; AType: TRestClientType = rtIndy);
+constructor TRestClient.Create(const ABaseURL: string; AType: TRestClientType = rtIndy; const ATokenEndpoint: String = ''; const AClientId: String = ''; const AClientSecret: string = '');
 begin
   inherited Create;
 
@@ -319,23 +321,7 @@ begin
                LHeaders := LHeaders + 'x-api-token: ' + UTF8Encode(FTokenManager.GetAccessToken) + #13#10
              else
              begin
-                // If TokenManager is nil, emulate Basic Auth if ClientId/Secret present?
-                // Indy: 
-                // if FTokenManager = nil then
-                //   if Trim(FClientId) <> '' then FIdHTTP.Request.Username := FClientId...
-                
-                // For WinInet we might need to add Authorization header manually or use InternetSetOption.
-                // Simplest is manually adding header if we want to be explicit.
-                // Basic Auth = "Authorization: Basic " + Base64(User:Pass)
-                // Since I cannot easily do Base64 here without unit, and Indy does it internally...
-                // Ideally I'd use IdEncoderMIME but I don't want to couple WinInet path to Indy units more than necessary.
-                // BUT, we are already using TIdMultiPartFormDataStream... so we depend on Indy.
-                // So I can use TIdEncoderMIME if strictly needed.
-                // However, the prompt asked to "propose changes".
-                // I will skip manual Basic Auth implementation for now and assume the user uses OAuth mainly, 
-                // or rely on WinInet's prompt handling if needed (unlikely for API).
-                // Actually, I should probably handle it if expecting parity.
-                // But I'll stick to the core requirement: WinInet option.
+                // if Assigned(FTokenManager) then ... else ...
              end;
 
              if Assigned(LMultiPart) then
