@@ -23,7 +23,6 @@ uses
   RestClient.Request;
 
 type
-  HINTERNET = Pointer;
   TRestClientType = (rtIndy, rtWinInet);
 
   TRestClient = class(TInterfacedObject, IRestClient)
@@ -146,8 +145,7 @@ end;
 
 function TRestClient.ExecuteRequestWinInet(ARequest: IRestRequest; AMethod: THTTPMethod): IRestResponse;
 var
-  hInternet, hConnect, hRequest: HINTERNET;
-  LStrData: AnsiString;
+  hInternet, hConnect, hRequest: Pointer;
   LResponseBuffer: TStringStream;
   LBytesRead: DWORD;
   LBuffer: array[0..4095] of AnsiChar;
@@ -165,8 +163,7 @@ var
   LPPostBuffer: Pointer;
   LPostSize: LongWord;
   LStatusCode: DWORD;
-  LStatusText: string;
-  LRawHeaders: string;
+  LRawHeaders: TStringList;
   LLen: DWORD;
   LHeaderIndex: DWORD;
   LRawHeadersBuffer: PAnsiChar;
@@ -179,12 +176,12 @@ begin
   LDataStream := nil;
   LMultiPart := nil;
   LResponseBuffer := TStringStream.Create('');
+  LRawHeaders := TStringList.Create;
   try
+    LRawHeaders.Text := '';
     try
-      // 1. Prepare URL and Method
       LFullUrl := ARequest.GetFullUrl;
-      
-      // Append Query Params (Same as Indy)
+
       LParams := ARequest.GetParams;
       if LParams.Count > 0 then
       begin
@@ -195,10 +192,9 @@ begin
         LFullUrl := LFullUrl + LParams.DelimitedText;
       end;
 
-      // Header Parsing Logic
       LTempUrl := LFullUrl;
       LIsSSL := False;
-      LURLPort := 0; // Default later
+      LURLPort := 0;
 
       if Pos('https://', LowerCase(LTempUrl)) = 1 then
       begin
@@ -211,8 +207,6 @@ begin
         Delete(LTempUrl, 1, 7);
         LURLPort := 80;
       end;
-      // Else assume protocol-less or error?
-      // For now assume http if no protocol but usually GetFullUrl returns with protocol.
 
       LSlashPos := Pos('/', LTempUrl);
       if LSlashPos > 0 then
@@ -229,13 +223,12 @@ begin
       LColonPos := Pos(':', LURLHost);
       if LColonPos > 0 then
       begin
-        // If port was already set by schem, override? Or if schema set defaults, and port is specific?
-        // Usually specific port overrides schema default.
         LURLPort := StrToIntDef(Copy(LURLHost, LColonPos + 1, Length(LURLHost)), LURLPort);
         LURLHost := Copy(LURLHost, 1, LColonPos - 1);
       end;
 
-      if LURLPort = 0 then LURLPort := 80; // Safety fallback
+      if LURLPort = 0 then
+        LURLPort := 80;
 
       case AMethod of
         rmGET:    LMethodStr := 'GET';
@@ -245,7 +238,6 @@ begin
         rmPATCH:  LMethodStr := 'PATCH';
       end;
 
-      // 2. Prepare Data (Body)
       if (AMethod in [rmPOST, rmPUT, rmPATCH]) then
       begin
           LParts := ARequest.GetParts;
@@ -271,32 +263,18 @@ begin
           end;
       end;
 
-      // 3. WinInet Calls
-      // INTERNET_OPEN_TYPE_PRECONFIG uses IE settings
-      hInternet := InternetOpen(PChar('InterCredPJ (compatible; Delphi 2007)'), 
+      hInternet := InternetOpen(PChar('InterCredPJ (compatible; Delphi 2007)'),
                                 INTERNET_OPEN_TYPE_PRECONFIG, nil, nil, 0);
       if hInternet = nil then RaiseLastOSError;
       
       try
-        // Determine Username/Password for Connect
-        // For REST, usually we don't use Connect-level Auth, but if needed:
-        // Using FClientId/FClientSecret ONLY if they are not used for Token (OAuth)
-        // Original logic: if FTokenManager = nil, put them in Request.Username/Password.
-        // WinInet InternetConnect takes them.
-        
-        // However, standard InternetConnect Auth is for Proxy or Basic Auth at connection level?
-        // Actually it sets default credentials.
-        
-        // Let's pass nil unless we are sure. The headers are the most important part for REST.
-        // If we pass them here, WinInet might send Basic Auth automatically.
-        // For safety/matching Indy:
-        // Indy sets Request.Username/Password.
-        
         hConnect := InternetConnect(hInternet, PChar(LURLHost), LURLPort, 
                                     nil, 
                                     nil,
                                     INTERNET_SERVICE_HTTP, 0, 0);
-        if hConnect = nil then RaiseLastOSError;
+                                    
+        if hConnect = nil then
+          RaiseLastOSError;
         
         try
           LFlags := INTERNET_FLAG_RELOAD or INTERNET_FLAG_KEEP_CONNECTION;
@@ -304,10 +282,10 @@ begin
             LFlags := LFlags or INTERNET_FLAG_SECURE or INTERNET_FLAG_IGNORE_CERT_CN_INVALID or INTERNET_FLAG_IGNORE_CERT_DATE_INVALID;
             
           hRequest := HttpOpenRequest(hConnect, PChar(LMethodStr), PChar(LURLPath), nil, nil, nil, LFlags, 0);
-          if hRequest = nil then RaiseLastOSError;
+          if hRequest = nil then
+            RaiseLastOSError;
           
           try
-             // 4. Headers
              LHeaders := '';
              if ARequest.GetBodyContentType = '' then
                LHeaders := LHeaders + 'Accept: application/json' + #13#10
@@ -331,7 +309,6 @@ begin
 
              HttpAddRequestHeaders(hRequest, PChar(LHeaders), Length(LHeaders), HTTP_ADDREQ_FLAG_ADD or HTTP_ADDREQ_FLAG_REPLACE);
              
-             // 5. Send Request
              LPostSize := 0;
              LPPostBuffer := nil;
              if Assigned(LDataStream) then
@@ -353,15 +330,13 @@ begin
                  FreeMem(LPPostBuffer);
              end;
              
-             // 6. Read Response
              LLen := SizeOf(DWORD);
              LHeaderIndex := 0;
              LStatusCode := 0;
              if not HttpQueryInfo(hRequest, HTTP_QUERY_STATUS_CODE or HTTP_QUERY_FLAG_NUMBER, @LStatusCode, LLen, LHeaderIndex) then
-               LStatusCode := 0; // Failed to get status?
+               LStatusCode := 0; 
              
-             // Read Response Headers
-             LRawHeaders := '';
+             LRawHeaders.Text := '';
              LLen := 0;
              LHeaderIndex := 0;
              HttpQueryInfo(hRequest, HTTP_QUERY_RAW_HEADERS_CRLF, nil, LLen, LHeaderIndex);
@@ -370,13 +345,12 @@ begin
                GetMem(LRawHeadersBuffer, LLen);
                try
                  if HttpQueryInfo(hRequest, HTTP_QUERY_RAW_HEADERS_CRLF, LRawHeadersBuffer, LLen, LHeaderIndex) then
-                   LRawHeaders := StrPas(LRawHeadersBuffer);
+                   LRawHeaders.Text := StrPas(LRawHeadersBuffer);
                finally
                  FreeMem(LRawHeadersBuffer);
                end;
              end;
              
-             // Read Body
              repeat
                if not InternetReadFile(hRequest, @LBuffer, SizeOf(LBuffer), LBytesRead) then
                  Break;
@@ -400,11 +374,11 @@ begin
     except
       on E: Exception do
       begin
-         Result := TRestResponse.Create(500, E.Message, '');
+         Result := TRestResponse.Create(500, E.Message, LRawHeaders);
       end;
     end;
   finally
-    LResponseStream.Free;
+    LRawHeaders.Free;
   end;
 end;
 

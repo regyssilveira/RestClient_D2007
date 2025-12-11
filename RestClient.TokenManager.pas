@@ -76,7 +76,6 @@ var
   LResponse: IRestResponse;
   LJson: ISuperObject;
   LExpiresIn: Integer;
-  LBody: string;
 begin
   LClient := GetClient;
   if LClient = nil then
