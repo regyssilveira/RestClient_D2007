@@ -320,7 +320,7 @@ begin
                LHeaders := LHeaders + ARequest.GetHeaders[I] + #13#10;
              
              if Assigned(FTokenManager) and (not ARequest.ShouldIgnoreToken) then
-               LHeaders := LHeaders + 'x-api-token: ' + UTF8Encode(FTokenManager.GetAccessToken) + #13#10
+               LHeaders := LHeaders + 'x-api-token:' + UTF8Encode(FTokenManager.GetAccessToken) + #13#10
              else
              begin
                 if (Trim(FClientId) <> '') and (Trim(FClientSecret) <> '') then
@@ -454,7 +454,6 @@ var
   I: Integer;
   LPart: TRequestPart;
   LParts: TList;
-  LParams: TStrings;
 begin
   FIdHTTP.Request.Clear;
   FIdHTTP.Request.CustomHeaders.Clear;

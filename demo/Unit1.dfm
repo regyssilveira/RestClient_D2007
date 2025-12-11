@@ -13,14 +13,14 @@ object Form1: TForm1
   OldCreateOrder = False
   PixelsPerInch = 96
   TextHeight = 13
-  object Button1: TButton
+  object BtnUATObterToken: TButton
     Left = 8
     Top = 8
     Width = 219
     Height = 33
-    Caption = 'UAT Obter Token'
+    Caption = 'UAT Obter Token (somente para testes)'
     TabOrder = 0
-    OnClick = Button1Click
+    OnClick = BtnUATObterTokenClick
   end
   object Button2: TButton
     Left = 625
@@ -40,22 +40,31 @@ object Form1: TForm1
       'Memo1')
     TabOrder = 2
   end
-  object Button3: TButton
+  object BtnUATCREDIT: TButton
     Left = 8
     Top = 47
     Width = 219
     Height = 33
-    Caption = 'UAT Executar Fluxo'
+    Caption = 'UAT Executar Fluxo CREDIT'
     TabOrder = 3
-    OnClick = Button3Click
+    OnClick = BtnUATCREDITClick
   end
-  object Button4: TButton
-    Left = 8
-    Top = 86
+  object BtnUATSaldo: TButton
+    Left = 233
+    Top = 8
     Width = 219
     Height = 33
     Caption = 'UAT GET SALDO'
     TabOrder = 4
-    OnClick = Button4Click
+    OnClick = BtnUATSaldoClick
+  end
+  object BtnUATDebit: TButton
+    Left = 8
+    Top = 86
+    Width = 219
+    Height = 33
+    Caption = 'UAT Executar Fluxo DEBIT'
+    TabOrder = 5
+    OnClick = BtnUATDebitClick
   end
 end

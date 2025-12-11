@@ -27,11 +27,7 @@ type
 
   TRestRequest = class(TInterfacedObject, IRestRequest)
   private
-    FClient: IRestClient; // Weak reference conceptually, but interface keeps it alive.
-                          // In D2007, we need to be careful about circular ref if Client holds Request.
-                          // Here Request is created by Client, so Client should probably not hold a ref to Request 
-                          // or we use a weak pointer if needed. 
-                          // For this design, Request executes via Client.
+    FClient: IRestClient; 
     FResource: string;
     FHeaders: TStringList;
     FParams: TStringList;
@@ -56,7 +52,6 @@ type
     function IgnoreToken: IRestRequest;
     function ShouldIgnoreToken: Boolean;
 
-    // Interface implementations
     function GetHeaders: TStrings;
     function GetParams: TStrings;
     function GetBody: string;
@@ -64,7 +59,6 @@ type
     function GetParts: TList;
     function GetResource: string;
 
-    // Internal getters for the Client to access (kept for compatibility or internal use)
     property Headers: TStringList read FHeaders;
     property Params: TStringList read FParams;
     property Body: string read FBody;
@@ -76,10 +70,7 @@ type
 implementation
 
 uses
-  RestClient.Core; // Need to cast IRestClient to TRestClient to call ExecuteRequest if not on interface
-                   // Or better, add ExecuteRequest to IRestClient? 
-                   // Let's assume we can cast or IRestClient has a method we can use.
-                   // Actually, I'll add ExecuteRequest to TRestClient public section and cast.
+  RestClient.Core;
 
 { TRequestPart }
 
@@ -160,7 +151,7 @@ end;
 
 function TRestRequest.AddHeader(const AName, AValue: string): IRestRequest;
 begin
-  FHeaders.Add(AName + '=' + AValue);
+  FHeaders.Add(AName + ':' + AValue);
   Result := Self;
 end;
 
