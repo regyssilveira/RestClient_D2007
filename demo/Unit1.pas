@@ -12,8 +12,13 @@ type
   TForm1 = class(TForm)
     Button1: TButton;
     Button2: TButton;
+    Memo1: TMemo;
+    Button3: TButton;
+    Button4: TButton;
     procedure Button1Click(Sender: TObject);
     procedure Button2Click(Sender: TObject);
+    procedure Button3Click(Sender: TObject);
+    procedure Button4Click(Sender: TObject);
   private
     { Private declarations }
   public
@@ -33,24 +38,6 @@ uses
 
 {$R *.dfm}
 
-procedure TForm1.Button1Click(Sender: TObject);
-var
-  LClient: IRestClient;
-  Token: String;
-begin
-  LClient := TRestClient.Create(
-    'https://api.cre.uatesb.local/api/ce-core-banking-service/v1',
-    rtWinInet,
-    'https://api.cre.uatesb.local/oauth/token',
-    'srvc.ce.core.banking.service.uat',
-    'K>9.V=n20T9vo!bn0>bbn'
-  );
-  Token := LClient.CreateRequest
-    .ObterToken;
-
-  ShowMessage(Token);
-end;
-
 procedure TForm1.Button2Click(Sender: TObject);
 var
   LClient: IRestClient;
@@ -69,6 +56,75 @@ begin
     .Execute(rmPOST);
 
   ShowMessage(LResponse.Content);
+end;
+
+procedure TForm1.Button1Click(Sender: TObject);
+var
+  LClient: IRestClient;
+  Token: String;
+begin
+  LClient := TRestClient.Create(
+    'https://api.cre.uatesb.local/api/ce-core-banking-service/v1',
+    rtWinInet,
+    'https://api.cre.uatesb.local/oauth/token',
+    'srvc.ce.core.banking.service.uat',
+    'K>9.V=n20T9vo!bn0>bbn'
+  );
+  Token := LClient.CreateRequest
+    .ObterToken;
+
+  Memo1.Lines.Text := Token;
+end;
+
+procedure TForm1.Button3Click(Sender: TObject);
+var
+  LClient: IRestClient;
+  Token: String;
+begin
+  LClient := TRestClient.Create(
+    'https://api.cre.uatesb.local/api/ce-core-banking-service/v1',
+    rtWinInet,
+    'https://api.cre.uatesb.local/oauth/token',
+    'srvc.ce.core.banking.service.uat',
+    'K>9.V=n20T9vo!bn0>bbn'
+  );
+
+  // chamar o transaction operations
+
+  // chamar o transaction movement
+
+  // se der erro então chamar o
+
+  Token := LClient.CreateRequest
+    .ObterToken;
+
+  Memo1.Lines.Text := Token;
+end;
+
+procedure TForm1.Button4Click(Sender: TObject);
+var
+  LClient: IRestClient;
+  LResponse: IRestResponse;
+begin
+  LClient := TRestClient.Create(
+    'https://api.cre.uatesb.local/api/ce-core-banking-service/v1',
+    rtWinInet,
+    'https://api.cre.uatesb.local/oauth/token',
+    'srvc.ce.core.banking.service.uat',
+    'K>9.V=n20T9vo!bn0>bbn'
+  );
+
+  LResponse := LClient.CreateRequest
+    .Resource('/account/balance')
+    .AddHeader('accountNumber', '0010261290')
+    .AddHeader('bankBranch',    '00019')
+    .AddHeader('originSystem',  'INTERCREDPJ')
+    .Execute(rmGET);
+
+  if LResponse.StatusCode <> 200 then
+    raise Exception.Create('Erro ao consultar saldo: ' + InttoStr(LResponse.StatusCode) + ' - ' + LResponse.Content)
+  else
+    Memo1.Lines.Text := LResponse.Content;
 end;
 
 end.
