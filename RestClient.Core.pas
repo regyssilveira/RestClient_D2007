@@ -189,7 +189,12 @@ begin
           LFullUrl := LFullUrl + '?'
         else
           LFullUrl := LFullUrl + '&';
-        LFullUrl := LFullUrl + LParams.DelimitedText;
+
+        for I := 0 to LParams.Count - 1 do
+        begin
+          if I > 0 then LFullUrl := LFullUrl + '&';
+          LFullUrl := LFullUrl + LParams[I];
+        end;
       end;
 
       LTempUrl := LFullUrl;
@@ -368,8 +373,6 @@ begin
         end;
       finally
         InternetCloseHandle(hInternet);
-        if Assigned(LMultiPart) then LMultiPart.Free
-        else if Assigned(LDataStream) then LDataStream.Free;
       end;
     except
       on E: Exception do
@@ -379,6 +382,9 @@ begin
     end;
   finally
     LRawHeaders.Free;
+    LResponseBuffer.Free;
+    if Assigned(LMultiPart) then LMultiPart.Free
+    else if Assigned(LDataStream) then LDataStream.Free;
   end;
 end;
 
@@ -419,7 +425,6 @@ begin
   
   LUrl := ARequest.GetFullUrl;
   
-  // Append Query Params
   LParams := ARequest.GetParams;
   if LParams.Count > 0 then
   begin
@@ -427,7 +432,12 @@ begin
       LUrl := LUrl + '?'
     else
       LUrl := LUrl + '&';
-    LUrl := LUrl + LParams.DelimitedText;
+
+    for I := 0 to LParams.Count - 1 do
+    begin
+        if I > 0 then LUrl := LUrl + '&';
+        LUrl := LUrl + LParams[I];
+    end;
   end;
 
   LResponseStream := TStringStream.Create('');
