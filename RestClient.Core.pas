@@ -401,6 +401,24 @@ begin
                if LBytesRead = 0 then Break;
                LResponseBuffer.Write(LBuffer, LBytesRead);
              until False;
+
+             if LResponseBuffer.Size = 0 then
+             begin
+               // Try to get Status Text if body is empty
+               LLen := 0;
+               LHeaderIndex := 0;
+               HttpQueryInfo(hRequest, HTTP_QUERY_STATUS_TEXT, nil, LLen, LHeaderIndex);
+               if (GetLastError = ERROR_INSUFFICIENT_BUFFER) and (LLen > 0) then
+               begin
+                 GetMem(LRawHeadersBuffer, LLen);
+                 try
+                   if HttpQueryInfo(hRequest, HTTP_QUERY_STATUS_TEXT, LRawHeadersBuffer, LLen, LHeaderIndex) then
+                     LResponseBuffer.WriteString(StrPas(LRawHeadersBuffer));
+                 finally
+                   FreeMem(LRawHeadersBuffer);
+                 end;
+               end;
+             end;
              
              Result := TRestResponse.Create(LStatusCode, LResponseBuffer.DataString, LRawHeaders);
              
@@ -529,7 +547,7 @@ begin
       begin
         Result := TRestResponse.Create(
           FIdHTTP.ResponseCode,
-          IfThen(Trim(FIdHTTP.ResponseText) = '', E.ErrorMessage, FIdHTTP.ResponseText),
+          IfThen(Trim(E.ErrorMessage) <> '', E.ErrorMessage, FIdHTTP.ResponseText),
           FIdHTTP.Response.RawHeaders
         );
       end;
