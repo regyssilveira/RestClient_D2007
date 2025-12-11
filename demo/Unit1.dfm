@@ -18,16 +18,16 @@ object Form1: TForm1
     Top = 32
     Width = 219
     Height = 49
-    Caption = 'Button1'
+    Caption = 'UAT Obter Token'
     TabOrder = 0
     OnClick = Button1Click
   end
   object Button2: TButton
-    Left = 56
-    Top = 112
+    Left = 360
+    Top = 32
     Width = 219
     Height = 49
-    Caption = 'Button1'
+    Caption = 'Teste Servidor Publico'
     TabOrder = 1
     OnClick = Button2Click
   end
