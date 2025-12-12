@@ -53,7 +53,7 @@ begin
               else
                 SetFloatProp(Self, LPropInfo, LJsonVal.AsDouble);
             end;
-          tkString, tkLString, tkWString, tkUString:
+          tkString, tkLString, tkWString:
             SetStrProp(Self, LPropInfo, LJsonVal.AsString);
           tkEnumeration:
              if GetTypeData(LPropInfo^.PropType^)^.BaseType^ = TypeInfo(Boolean) then
