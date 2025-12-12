@@ -147,31 +147,32 @@ begin
   Memo1.Lines.Add(JSonRequest.AsJSon(True));
   Memo1.Lines.Add('');
 
-  LResponse := LClient.CreateRequest
-    .Resource('/transaction-dk/operation')
-    .AddBody(JSonRequest)
-    .Execute(rmPOST);
+  try
+    LResponse := LClient.CreateRequest
+      .Resource('/transaction-dk/operation')
+      .AddBody(JSonRequest)
+      .Execute(rmPOST);
 
-  if LResponse.StatusCode = 201 then
-  begin
-    JsonResponse := LResponse.ContentAsJson;
+    if LResponse.StatusCode = 201 then
+    begin
+      JsonResponse := LResponse.ContentAsJson;
 
-    OperationId := JsonResponse.S['sagaOperationId'];
+      OperationId := JsonResponse.S['sagaOperationId'];
 
-    Memo1.Lines.Add('');
-    Memo1.Lines.Add('OperationId: ' + OperationId);
+      Memo1.Lines.Add('');
+      Memo1.Lines.Add('OperationId: ' + OperationId);
 
-    Memo1.Lines.Add('');
-    Memo1.Lines.Add('');
-    Memo1.Lines.Add(JsonResponse.AsJSon(True));
-  end
-  else
-  begin
-    Memo1.Lines.Add('');
-    Memo1.Lines.Add('');
-    Memo1.Lines.Add('Erro ao efetuar transação: ' + InttoStr(LResponse.StatusCode) + ' - ' + LResponse.Content);
-    
-    raise Exception.Create('Erro ao efetuar transação: ' + InttoStr(LResponse.StatusCode) + ' - ' + LResponse.Content)
+      Memo1.Lines.Add('');
+      Memo1.Lines.Add('');
+      Memo1.Lines.Add(JsonResponse.AsJSon(True));
+    end;
+  except
+    on E: Exception do
+    begin
+      Memo1.Lines.Add('');
+      Memo1.Lines.Add('');
+      Memo1.Lines.Add(E.Message);
+    end;
   end;
 end;
 
@@ -181,3 +182,4 @@ begin
 end;
 
 end.
+
