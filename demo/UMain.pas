@@ -1,4 +1,4 @@
-unit Unit1;
+unit UMain;
 
 interface
 
@@ -9,7 +9,7 @@ uses
 
 
 type
-  TForm1 = class(TForm)
+  TFrmMain = class(TForm)
     BtnUATObterToken: TButton;
     Button2: TButton;
     Memo1: TMemo;
@@ -28,7 +28,7 @@ type
   end;
 
 var
-  Form1: TForm1;
+  FrmMain: TFrmMain;
 
 implementation
 
@@ -41,7 +41,7 @@ uses
 
 {$R *.dfm}
 
-procedure TForm1.Button2Click(Sender: TObject);
+procedure TFrmMain.Button2Click(Sender: TObject);
 var
   LClient: IRestClient;
   LResponse: IRestResponse;
@@ -61,7 +61,7 @@ begin
   ShowMessage(LResponse.Content);
 end;
 
-procedure TForm1.BtnUATObterTokenClick(Sender: TObject);
+procedure TFrmMain.BtnUATObterTokenClick(Sender: TObject);
 var
   LClient: IRestClient;
   Token: String;
@@ -79,7 +79,7 @@ begin
   Memo1.Lines.Text := Token;
 end;
 
-procedure TForm1.BtnUATSaldoClick(Sender: TObject);
+procedure TFrmMain.BtnUATSaldoClick(Sender: TObject);
 var
   LService: ITransactionService;
   LBalance: TBalanceDTO;
@@ -95,6 +95,7 @@ begin
     LBalance := LService.GetSaldo('0010261290', '00019', 'INTERCREDPJ');
     try
       Memo1.Lines.Clear;
+
       Memo1.Lines.Add('Dados lidos da resposta:');
       Memo1.Lines.Add('balanceValue: '                 + FloatToStr(LBalance.BalanceValue));
       Memo1.Lines.Add('balanceBlockedCheck: '          + FloatToStr(LBalance.BalanceBlockedCheck));
@@ -113,12 +114,12 @@ begin
   end;
 end;
 
-procedure TForm1.BtnUATDebitClick(Sender: TObject);
+procedure TFrmMain.BtnUATDebitClick(Sender: TObject);
 begin
 //
 end;
 
-procedure TForm1.BtnUATCREDITClick(Sender: TObject);
+procedure TFrmMain.BtnUATCREDITClick(Sender: TObject);
 var
   LClient: IRestClient;
   LResponse: IRestResponse;

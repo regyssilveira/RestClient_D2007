@@ -1,14 +1,14 @@
-program Project2;
+program RestClient_Demo;
 
 uses
   Forms,
-  Unit1 in 'Unit1.pas' {Form1};
+  UMain in 'UMain.pas' {FrmMain};
 
 {$R *.res}
 
 begin
   Application.Initialize;
   Application.MainFormOnTaskbar := True;
-  Application.CreateForm(TForm1, Form1);
+  Application.CreateForm(TFrmMain, FrmMain);
   Application.Run;
 end.
