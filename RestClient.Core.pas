@@ -420,7 +420,7 @@ begin
                end;
              end;
              
-             Result := TRestResponse.Create(LStatusCode, LResponseBuffer.DataString, LRawHeaders);
+             Result := TRestResponse.Create(LStatusCode, UTF8ToAnsi(LResponseBuffer.DataString), LRawHeaders);
              
           finally
             InternetCloseHandle(hRequest);
@@ -539,14 +539,14 @@ begin
           end;
       end;
       
-      Result := TRestResponse.Create(FIdHTTP.ResponseCode, LResponseStream.DataString, FIdHTTP.Response.RawHeaders);
+      Result := TRestResponse.Create(FIdHTTP.ResponseCode, UTF8ToAnsi(LResponseStream.DataString), FIdHTTP.Response.RawHeaders);
       
     except
       on E: EIdHTTPProtocolException do
       begin
         Result := TRestResponse.Create(
           FIdHTTP.ResponseCode,
-          IfThen(Trim(E.ErrorMessage) <> '', E.ErrorMessage, FIdHTTP.ResponseText),
+          UTF8ToAnsi(IfThen(Trim(E.ErrorMessage) <> '', E.ErrorMessage, FIdHTTP.ResponseText)),
           FIdHTTP.Response.RawHeaders
         );
       end;
