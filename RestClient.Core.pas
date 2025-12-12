@@ -1,4 +1,4 @@
-unit RestClient.Core;
+ï»¿unit RestClient.Core;
 
 interface
 
@@ -197,6 +197,8 @@ var
   LIsSSL: Boolean;
   LSlashPos, LColonPos: Integer;
   LFlags: DWORD;
+  LResponseContent: string;
+  LJsonObj: ISuperObject;
 begin
   Result := nil;
   LDataStream := nil;
@@ -420,10 +422,20 @@ begin
               end;
             end;
 
-            Result := TRestResponse.Create(LStatusCode, UTF8ToAnsi(LResponseBuffer.DataString), LRawHeaders);
+            LResponseContent := UTF8ToAnsi(LResponseBuffer.DataString);
 
-            // json erro 400.499
-            // {"timestamp":"2025-12-12T15:37:44.745679972","status":403,"title":"Forbidden","path":"uri=/api/ce-core-banking-service/v1/transaction-dk/operation","detailMessage":"Usuário não possui permissão suficiente.","detailMessageCode":0}
+            if LStatusCode >= 400 then
+            begin
+               try
+                 LJsonObj := SO(LResponseContent);
+                 if Assigned(LJsonObj) and (LJsonObj.S['detailMessage'] <> '') then
+                   raise Exception.Create(LJsonObj.S['detailMessage']);
+               except
+               end;
+               raise Exception.Create(Format('HTTP Error %d: %s', [LStatusCode, LResponseContent]));
+            end;
+
+            Result := TRestResponse.Create(LStatusCode, LResponseContent, LRawHeaders);
           finally
             InternetCloseHandle(hRequest);
           end;
@@ -436,7 +448,7 @@ begin
     except
       on E: Exception do
       begin
-         Result := TRestResponse.Create(500, E.Message, LRawHeaders);
+         raise;
       end;
     end;
   finally
@@ -456,6 +468,8 @@ var
   I: Integer;
   LPart: TRequestPart;
   LParts: TList;
+  LResponseContent: string;
+  LJsonObj: ISuperObject;
 begin
   FIdHTTP.Request.Clear;
   FIdHTTP.Request.CustomHeaders.Clear;
@@ -546,11 +560,14 @@ begin
     except
       on E: EIdHTTPProtocolException do
       begin
-        Result := TRestResponse.Create(
-          FIdHTTP.ResponseCode,
-          UTF8ToAnsi(IfThen(Trim(E.ErrorMessage) <> '', E.ErrorMessage, FIdHTTP.ResponseText)),
-          FIdHTTP.Response.RawHeaders
-        );
+        LResponseContent := UTF8ToAnsi(IfThen(Trim(E.ErrorMessage) <> '', E.ErrorMessage, FIdHTTP.ResponseText));
+        try
+           LJsonObj := SO(LResponseContent);
+           if Assigned(LJsonObj) and (LJsonObj.S['detailMessage'] <> '') then
+             raise Exception.Create(LJsonObj.S['detailMessage']);
+        except
+        end;
+        raise Exception.Create(Format('HTTP Error %d: %s', [FIdHTTP.ResponseCode, LResponseContent]));
       end;
 
       on E: Exception do
