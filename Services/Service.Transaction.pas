@@ -16,7 +16,7 @@ type
     FBalanceProvisioned: Double;
     FValueLimit: Integer;
     FNetBalanceValue: Double;
-  public
+  published
     property BalanceValue: Double read FBalanceValue write FBalanceValue;
     property BalanceBlockedCheck: Double read FBalanceBlockedCheck write FBalanceBlockedCheck;
     property BalanceBlockedAdministrative: Double read FBalanceBlockedAdministrative write FBalanceBlockedAdministrative;

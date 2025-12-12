@@ -17,30 +17,21 @@ implementation
 
 procedure TJsonDTO.FromJson(AJson: ISuperObject);
 var
-  LPropCount, I: Integer;
-  LPropList: PPropList;
+  LIter: TSuperObjectIter;
   LPropInfo: PPropInfo;
-  LPropName: string;
   LJsonVal: ISuperObject;
 begin
   if AJson = nil then Exit;
 
-  LPropCount := GetPropList(Self.ClassInfo, tkProperties, nil);
-  if LPropCount > 0 then
-  begin
-    GetMem(LPropList, LPropCount * SizeOf(PPropInfo));
-    try
-      GetPropList(Self.ClassInfo, tkProperties, LPropList);
-      for I := 0 to LPropCount - 1 do
-      begin
-        LPropInfo := LPropList^[I];
-        LPropName := string(LPropInfo^.Name);
-        
-        // Simple case-insensitive matching
-        LJsonVal := AJson.O[LPropName]; 
-        if LJsonVal = nil then
-          LJsonVal := AJson.O[LowerCase(LPropName)];
+  if AJson = nil then Exit;
 
+  if ObjectFindFirst(AJson, LIter) then
+  try
+    repeat
+      LPropInfo := GetPropInfo(Self.ClassInfo, LIter.key);
+      if LPropInfo <> nil then
+      begin
+        LJsonVal := LIter.val;
         if LJsonVal = nil then Continue;
 
         case LPropInfo^.PropType^.Kind of
@@ -60,9 +51,9 @@ begin
                SetOrdProp(Self, LPropInfo, Integer(LJsonVal.AsBoolean));
         end;
       end;
-    finally
-      FreeMem(LPropList);
-    end;
+    until not ObjectFindNext(LIter);
+  finally
+    ObjectFindClose(LIter);
   end;
 end;
 
