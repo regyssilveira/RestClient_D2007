@@ -36,7 +36,8 @@ uses
   SuperObject,
   RestClient.Interfaces,
   RestClient.Response,
-  RestClient.Core;
+  RestClient.Core,
+  Service.Transaction;
 
 {$R *.dfm}
 
@@ -80,29 +81,28 @@ end;
 
 procedure TForm1.BtnUATSaldoClick(Sender: TObject);
 var
-  LClient: IRestClient;
-  LResponse: IRestResponse;
+  LService: ITransactionService;
+  LBalance: TBalanceDTO;
 begin
-  LClient := TRestClient.Create(
+  LService := TTransactionService.Create(
     'https://api.cre.uatesb.local/api/ce-core-banking-service/v1',
-    rtWinInet,
     'https://api.cre.uatesb.local/oauth/token',
     'srvc.ce.core.banking.service.uat',
     'K>9.V=n20T9vo!bn0>bbn'
   );
 
-  LResponse := LClient.CreateRequest
-    .Resource('/account/balance')
-    .AddHeader('accountNumber', '0010261290')
-    .AddHeader('bankBranch',    '00019')
-    .AddHeader('originSystem',  'INTERCREDPJ')
-    .Execute(rmGET);
-
-  if LResponse.StatusCode <> 200 then
-    raise Exception.Create('Erro ao consultar saldo: ' + InttoStr(LResponse.StatusCode) + ' - ' + LResponse.Content)
-  else
-  begin
-    Memo1.Lines.Text := LResponse.Content;
+  try
+    LBalance := LService.GetSaldo('0010261290', '00019', 'INTERCREDPJ');
+    try
+      Memo1.Lines.Clear;
+      Memo1.Lines.Add('Saldo: ' + FloatToStr(LBalance.Balance));
+      Memo1.Lines.Add('Bloqueado: ' + FloatToStr(LBalance.BlockedBalance));
+    finally
+      LBalance.Free;
+    end;
+  except
+    on E: Exception do
+      ShowMessage('Erro: ' + E.Message);
   end;
 end;
 
@@ -132,7 +132,7 @@ begin
 
   // chamar o transaction movement
 
-  // se der erro então chamar o
+  // se der erro ento chamar o
 
   JSonRequest := SO;
   JSonRequest.S['requestingService'] := 'ce-installment-amortization';
@@ -148,7 +148,7 @@ begin
 
   if LResponse.StatusCode <> 201 then
   begin
-    raise Exception.Create('Erro ao cefetuar transação: ' + InttoStr(LResponse.StatusCode) + ' - ' + LResponse.Content)
+    raise Exception.Create('Erro ao cefetuar transao: ' + InttoStr(LResponse.StatusCode) + ' - ' + LResponse.Content)
   end
   else
   begin
