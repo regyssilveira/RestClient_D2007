@@ -421,6 +421,9 @@ begin
             end;
 
             Result := TRestResponse.Create(LStatusCode, UTF8ToAnsi(LResponseBuffer.DataString), LRawHeaders);
+
+            // json erro 400.499
+            // {"timestamp":"2025-12-12T15:37:44.745679972","status":403,"title":"Forbidden","path":"uri=/api/ce-core-banking-service/v1/transaction-dk/operation","detailMessage":"Usuário não possui permissão suficiente.","detailMessageCode":0}
           finally
             InternetCloseHandle(hRequest);
           end;
