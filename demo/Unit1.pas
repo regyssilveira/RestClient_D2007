@@ -82,6 +82,7 @@ procedure TForm1.BtnUATSaldoClick(Sender: TObject);
 var
   LClient: IRestClient;
   LResponse: IRestResponse;
+  JsonResponse: ISuperObject;
 begin
   LClient := TRestClient.Create(
     'https://api.cre.uatesb.local/api/ce-core-banking-service/v1',
@@ -98,12 +99,31 @@ begin
     .AddHeader('originSystem',  'INTERCREDPJ')
     .Execute(rmGET);
 
-  if LResponse.StatusCode <> 200 then
-    raise Exception.Create('Erro ao consultar saldo: ' + InttoStr(LResponse.StatusCode) + ' - ' + LResponse.Content)
-  else
+  if LResponse.StatusCode = 200 then
   begin
-    Memo1.Lines.Text := LResponse.Content;
-  end;
+    JsonResponse := LResponse.ContentAsJson;
+    if not Assigned(JsonResponse) then
+      raise Exception.Create('Não foi possível ler o JSON de retorno.');
+
+    Memo1.Lines.Clear;
+
+    Memo1.Lines.Add('Dados lidos da resposta:');
+    Memo1.Lines.Add('balanceValue: '                 + JsonResponse.S['balanceValue']);
+    Memo1.Lines.Add('balanceBlockedCheck: '          + JsonResponse.S['balanceBlockedCheck']);
+    Memo1.Lines.Add('balanceBlockedAdministrative: ' + JsonResponse.S['balanceBlockedAdministrative']);
+    Memo1.Lines.Add('balanceBlockedJudicial: '       + JsonResponse.S['balanceBlockedJudicial']);
+    Memo1.Lines.Add('balanceBlockedSpecial: '        + JsonResponse.S['balanceBlockedSpecial']);
+    Memo1.Lines.Add('balanceProvisioned: '           + JsonResponse.S['balanceProvisioned']);
+    Memo1.Lines.Add('valueLimit: '                   + JsonResponse.S['valueLimit']);
+    Memo1.Lines.Add('netBalanceValue: '              + JsonResponse.S['netBalanceValue']);
+
+    Memo1.Lines.Add('');
+    Memo1.Lines.Add('');
+    Memo1.Lines.Add('Resposta do Servidor REST:');
+    Memo1.Lines.Add(JsonResponse.AsJSon(True));
+  end
+  else
+    raise Exception.Create('Erro ao consultar saldo: ' + InttoStr(LResponse.StatusCode) + ' - ' + LResponse.Content)
 end;
 
 procedure TForm1.BtnUATDebitClick(Sender: TObject);
