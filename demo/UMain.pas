@@ -118,7 +118,6 @@ procedure TFrmMain.BtnUATCREDITClick(Sender: TObject);
 var
   LClient: IRestClient;
   LResponse: IRestResponse;
-  StrBody: string;
   JSonRequest: ISuperObject;
   JsonResponse: ISuperObject;
   OperationId: String;
@@ -151,7 +150,7 @@ begin
   LResponse := LClient.CreateRequest
     .Resource('/transaction-dk/operation')
     .AddBody(JSonRequest)
-    .Execute(rmGET);
+    .Execute(rmPOST);
 
   if LResponse.StatusCode = 201 then
   begin
