@@ -8,11 +8,23 @@ uses
 type
   TBalanceDTO = class(TJsonDTO)
   private
-    FBalance: Double;
-    FBlockedBalance: Double;
-  published
-    property Balance: Double read FBalance write FBalance;
-    property BlockedBalance: Double read FBlockedBalance write FBlockedBalance;
+    FBalanceValue: Double;
+    FBalanceBlockedCheck: Double;
+    FBalanceBlockedAdministrative: Double;
+    FBalanceBlockedJudicial: Double;
+    FBalanceBlockedSpecial: Double;
+    FBalanceProvisioned: Double;
+    FValueLimit: Integer;
+    FNetBalanceValue: Double;
+  public
+    property BalanceValue: Double read FBalanceValue write FBalanceValue;
+    property BalanceBlockedCheck: Double read FBalanceBlockedCheck write FBalanceBlockedCheck;
+    property BalanceBlockedAdministrative: Double read FBalanceBlockedAdministrative write FBalanceBlockedAdministrative;
+    property BalanceBlockedJudicial: Double read FBalanceBlockedJudicial write FBalanceBlockedJudicial;
+    property BalanceBlockedSpecial: Double read FBalanceBlockedSpecial write FBalanceBlockedSpecial;
+    property BalanceProvisioned: Double read FBalanceProvisioned write FBalanceProvisioned;
+    property ValueLimit: Integer read FValueLimit write FValueLimit;
+    property NetBalanceValue: Double read FNetBalanceValue write FNetBalanceValue;
   end;
 
   ITransactionService = interface

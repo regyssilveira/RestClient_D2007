@@ -17,6 +17,10 @@
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <Version>7.0</Version>
     <DCC_Define>DEBUG</DCC_Define>
+    <DCC_UnitSearchPath>D:\InterCred\RestClient;D:\InterCred\RestClient\SuperObject;D:\InterCred\RestClient\Services</DCC_UnitSearchPath>
+    <DCC_ResourcePath>D:\InterCred\RestClient;D:\InterCred\RestClient\SuperObject;D:\InterCred\RestClient\Services</DCC_ResourcePath>
+    <DCC_ObjPath>D:\InterCred\RestClient;D:\InterCred\RestClient\SuperObject;D:\InterCred\RestClient\Services</DCC_ObjPath>
+    <DCC_IncludePath>D:\InterCred\RestClient;D:\InterCred\RestClient\SuperObject;D:\InterCred\RestClient\Services</DCC_IncludePath>
   </PropertyGroup>
   <ProjectExtensions>
     <Borland.Personality>Delphi.Personality</Borland.Personality>
@@ -170,11 +174,6 @@
     <DelphiCompile Include="Project2.dpr">
       <MainSource>MainSource</MainSource>
     </DelphiCompile>
-    <DCCReference Include="..\RestClient.Core.pas" />
-    <DCCReference Include="..\RestClient.Interfaces.pas" />
-    <DCCReference Include="..\RestClient.Request.pas" />
-    <DCCReference Include="..\RestClient.Response.pas" />
-    <DCCReference Include="..\RestClient.TokenManager.pas" />
     <DCCReference Include="Unit1.pas">
       <Form>Form1</Form>
     </DCCReference>

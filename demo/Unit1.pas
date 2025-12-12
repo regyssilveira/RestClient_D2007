@@ -95,8 +95,15 @@ begin
     LBalance := LService.GetSaldo('0010261290', '00019', 'INTERCREDPJ');
     try
       Memo1.Lines.Clear;
-      Memo1.Lines.Add('Saldo: ' + FloatToStr(LBalance.Balance));
-      Memo1.Lines.Add('Bloqueado: ' + FloatToStr(LBalance.BlockedBalance));
+      Memo1.Lines.Add('Dados lidos da resposta:');
+      Memo1.Lines.Add('balanceValue: '                 + FloatToStr(LBalance.BalanceValue));
+      Memo1.Lines.Add('balanceBlockedCheck: '          + FloatToStr(LBalance.BalanceBlockedCheck));
+      Memo1.Lines.Add('balanceBlockedAdministrative: ' + FloatToStr(LBalance.balanceBlockedAdministrative));
+      Memo1.Lines.Add('balanceBlockedJudicial: '       + FloatToStr(LBalance.BalanceBlockedJudicial));
+      Memo1.Lines.Add('balanceBlockedSpecial: '        + FloatToStr(LBalance.BalanceBlockedSpecial));
+      Memo1.Lines.Add('balanceProvisioned: '           + FloatToStr(LBalance.BalanceProvisioned));
+      Memo1.Lines.Add('valueLimit: '                   + FloatToStr(LBalance.ValueLimit));
+      Memo1.Lines.Add('netBalanceValue: '              + FloatToStr(LBalance.NetBalanceValue));
     finally
       LBalance.Free;
     end;
