@@ -120,6 +120,8 @@ var
   JsonResponse: ISuperObject;
   OperationId: String;
 begin
+  Memo1.Lines.Clear;
+  
   LClient := TRestClient.Create(
     'https://api.cre.uatesb.local/api/ce-core-banking-service/v1',
     rtWinInet,
@@ -128,33 +130,46 @@ begin
     'K>9.V=n20T9vo!bn0>bbn'
   );
 
-  // chamar o transaction operations
+  // chamar o transaction operation
+  // chamar o transaction movement (CREDIT or DEBIT)
+  // se der erro então chamar o reversal
+  // saldo para verficar a transação
 
-  // chamar o transaction movement
-
-  // se der erro ento chamar o
-
+  // json enviado no body da transacao
   JSonRequest := SO;
   JSonRequest.S['requestingService'] := 'ce-installment-amortization';
   JSonRequest.S['accountNumber']     := '0010261290';
-  JSonRequest.S['description']       := 'Debit';
+  JSonRequest.S['description']       := 'Credit';
 
-  ShowMessage(JSonRequest.AsJSon(True));
+  Memo1.Lines.Add('Body request');
+  Memo1.Lines.Add(JSonRequest.AsJSon(True));
+  Memo1.Lines.Add('');
 
   LResponse := LClient.CreateRequest
-    .Resource('/ransaction-dk/operation')
+    .Resource('/transaction-dk/operation')
     .AddBody(JSonRequest)
     .Execute(rmGET);
 
-  if LResponse.StatusCode <> 201 then
-  begin
-    raise Exception.Create('Erro ao cefetuar transao: ' + InttoStr(LResponse.StatusCode) + ' - ' + LResponse.Content)
-  end
-  else
+  if LResponse.StatusCode = 201 then
   begin
     JsonResponse := LResponse.ContentAsJson;
 
-    Memo1.Lines.Text := JsonResponse.S['sagaOperationId'];
+    OperationId := JsonResponse.S['sagaOperationId'];
+
+    Memo1.Lines.Add('');
+    Memo1.Lines.Add('OperationId: ' + OperationId);
+
+    Memo1.Lines.Add('');
+    Memo1.Lines.Add('');
+    Memo1.Lines.Add(JsonResponse.AsJSon(True));
+  end
+  else
+  begin
+    Memo1.Lines.Add('');
+    Memo1.Lines.Add('');
+    Memo1.Lines.Add('Erro ao efetuar transação: ' + InttoStr(LResponse.StatusCode) + ' - ' + LResponse.Content);
+    
+    raise Exception.Create('Erro ao efetuar transação: ' + InttoStr(LResponse.StatusCode) + ' - ' + LResponse.Content)
   end;
 end;
 
