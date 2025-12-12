@@ -114,11 +114,6 @@ begin
   end;
 end;
 
-procedure TFrmMain.BtnUATDebitClick(Sender: TObject);
-begin
-//
-end;
-
 procedure TFrmMain.BtnUATCREDITClick(Sender: TObject);
 var
   LClient: IRestClient;
@@ -179,6 +174,11 @@ begin
     
     raise Exception.Create('Erro ao efetuar transação: ' + InttoStr(LResponse.StatusCode) + ' - ' + LResponse.Content)
   end;
+end;
+
+procedure TFrmMain.BtnUATDebitClick(Sender: TObject);
+begin
+//
 end;
 
 end.
