@@ -37,9 +37,9 @@ begin
         LPropName := string(LPropInfo^.Name);
         
         // Simple case-insensitive matching
-        LJsonVal := AJson.D[LPropName]; 
+        LJsonVal := AJson.O[LPropName]; 
         if LJsonVal = nil then
-          LJsonVal := AJson.D[LowerCase(LPropName)];
+          LJsonVal := AJson.O[LowerCase(LPropName)];
 
         if LJsonVal = nil then Continue;
 
@@ -47,7 +47,12 @@ begin
           tkInteger, tkInt64:
             SetOrdProp(Self, LPropInfo, LJsonVal.AsInteger);
           tkFloat:
-            SetFloatProp(Self, LPropInfo, LJsonVal.AsDouble);
+            begin
+              if LJsonVal.DataType = stString then
+                SetFloatProp(Self, LPropInfo, StrToFloatDef(StringReplace(LJsonVal.AsString, '.', DecimalSeparator, [rfReplaceAll]), 0.0))
+              else
+                SetFloatProp(Self, LPropInfo, LJsonVal.AsDouble);
+            end;
           tkString, tkLString, tkWString, tkUString:
             SetStrProp(Self, LPropInfo, LJsonVal.AsString);
           tkEnumeration:
