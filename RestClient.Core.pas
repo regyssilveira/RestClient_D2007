@@ -426,13 +426,24 @@ begin
 
             if LStatusCode >= 400 then
             begin
-               try
-                 LJsonObj := SO(LResponseContent);
-                 if Assigned(LJsonObj) and (LJsonObj.S['detailMessage'] <> '') then
-                   raise Exception.Create(LJsonObj.S['detailMessage']);
-               except
-               end;
-               raise Exception.Create(Format('HTTP Error %d: %s', [LStatusCode, LResponseContent]));
+              LJsonObj := SO(LResponseContent);
+              if Assigned(LJsonObj) then
+              begin
+                if (LJsonObj.S['detailMessage'] <> '') then
+                begin
+                  raise Exception.Create(Format('%d - %s, %d - %s, "%s"',
+                    [
+                      LJsonObj.I['status'],
+                      LJsonObj.S['title'],
+                      LJsonObj.I['detailMessageCode'],
+                      LJsonObj.S['detailMessage'],
+                      LJsonObj.S['path']
+                    ])
+                  );
+                end;
+              end;
+
+              raise Exception.Create(Format('HTTP Error %d: %s', [LStatusCode, LResponseContent]));
             end;
 
             Result := TRestResponse.Create(LStatusCode, LResponseContent, LRawHeaders);
@@ -561,12 +572,11 @@ begin
       on E: EIdHTTPProtocolException do
       begin
         LResponseContent := UTF8ToAnsi(IfThen(Trim(E.ErrorMessage) <> '', E.ErrorMessage, FIdHTTP.ResponseText));
-        try
-           LJsonObj := SO(LResponseContent);
-           if Assigned(LJsonObj) and (LJsonObj.S['detailMessage'] <> '') then
-             raise Exception.Create(LJsonObj.S['detailMessage']);
-        except
-        end;
+        
+        LJsonObj := SO(LResponseContent);
+        if Assigned(LJsonObj) and (LJsonObj.S['detailMessage'] <> '') then
+          raise Exception.Create(LJsonObj.S['detailMessage']);
+          
         raise Exception.Create(Format('HTTP Error %d: %s', [FIdHTTP.ResponseCode, LResponseContent]));
       end;
 

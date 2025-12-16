@@ -121,9 +121,12 @@ var
   JSonRequest: ISuperObject;
   JsonResponse: ISuperObject;
   OperationId: String;
+  ContaNumero, ContaAgencia: String;
 begin
   Memo1.Lines.Clear;
-  
+
+  ContaNumero := '0010261290';
+
   LClient := TRestClient.Create(
     'https://api.cre.uatesb.local/api/ce-core-banking-service/v1',
     rtWinInet,
@@ -133,14 +136,14 @@ begin
   );
 
   // chamar o transaction operation
-  // chamar o transaction movement (CREDIT or DEBIT)
+  // chamar o transaction movement
   // se der erro então chamar o reversal
   // saldo para verficar a transação
 
   // json enviado no body da transacao
   JSonRequest := SO;
   JSonRequest.S['requestingService'] := 'ce-installment-amortization';
-  JSonRequest.S['accountNumber']     := '0010261290';
+  JSonRequest.S['accountNumber']     := ContaNumero;
   JSonRequest.S['description']       := 'Credit';
 
   Memo1.Lines.Add('Body request');
@@ -148,6 +151,7 @@ begin
   Memo1.Lines.Add('');
 
   try
+    // operation
     LResponse := LClient.CreateRequest
       .Resource('/transaction-dk/operation')
       .AddBody(JSonRequest)
@@ -156,15 +160,79 @@ begin
     if LResponse.StatusCode = 201 then
     begin
       JsonResponse := LResponse.ContentAsJson;
+      if Assigned(JsonResponse) then
+      begin
+        OperationId := JsonResponse.S['sagaOperationId'];
 
-      OperationId := JsonResponse.S['sagaOperationId'];
+        Memo1.Lines.Add('');
+        Memo1.Lines.Add('OperationId: ' + OperationId);
+        Memo1.Lines.Add('');
+        Memo1.Lines.Add(JsonResponse.AsJSon(True));
 
-      Memo1.Lines.Add('');
-      Memo1.Lines.Add('OperationId: ' + OperationId);
+        // movement
+        JSonRequest := SO;
+        JSonRequest.S['dateMovement']     := FormatDateTime('YYYY-MM-DD', NOW);
+        JSonRequest.S['dateType']         := 'D_0';
+        JSonRequest.S['historicalCode']   := '07129';
+        JSonRequest.S['originSystem']     := 'INTCREDPJ';
+        JSonRequest.S['documentNumber']   := '03300974000189';
+        JSonRequest.I['channel']          := 0;
+        JSonRequest.S['accountNumber']    := ContaNumero;
+        JSonRequest.S['originAgencyCode'] := ContaAgencia;
+        JSonRequest.S['sagaOperationId']  := OperationId;
+        JSonRequest.D['valueMovement']    := 12559.15;
+        JSonRequest.S['complement']       := '';
+        JSonRequest.S['userCode']         := 'REST_API_EXECUTION';
 
-      Memo1.Lines.Add('');
-      Memo1.Lines.Add('');
-      Memo1.Lines.Add(JsonResponse.AsJSon(True));
+        Memo1.Lines.Add('Movimento Body Request: ');
+        Memo1.Lines.Add('');
+        Memo1.Lines.Add('');
+        Memo1.Lines.Add(JSonRequest.AsJSon(True));
+
+        LResponse := LClient.CreateRequest
+          .Resource('/transaction-dk/movement')
+          .AddBody(JSonRequest)
+          .Execute(rmPOST);
+
+        if LResponse.StatusCode = 201 then
+        begin
+          JsonResponse := LResponse.ContentAsJson;
+          if Assigned(JsonResponse) then
+          begin
+            Memo1.Lines.Add('Movimento Resposta: ');
+            Memo1.Lines.Add('');
+            Memo1.Lines.Add('');
+            Memo1.Lines.Add(JsonResponse.AsJSon(True));
+
+            if JsonResponse.S['status'] = 'DK_ERROR' then
+            begin
+              raise Exception.Create(Format(
+                '%s - %s'#13#10'%s', [
+                  JsonResponse.S['operationNumber'],
+                  JsonResponse.S['status'],
+                  JsonResponse.S['message']
+                ])
+              );
+            end;
+
+
+
+
+          end
+          else
+          begin
+            raise Exception.Create(
+              'Não foi possível ler a resposta!' + sLineBreak +
+              'Json Resposta:' +
+              JsonResponse.AsJSon(True)
+            );
+          end;
+        end;
+      end
+      else
+      begin
+
+      end;
     end;
   except
     on E: Exception do
