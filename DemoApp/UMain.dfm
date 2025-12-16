@@ -19,11 +19,11 @@ object FrmMain: TFrmMain
     Top = 0
     Width = 788
     Height = 350
-    ActivePage = TabBasic
+    ActivePage = TabAuth
     Align = alTop
     TabOrder = 0
     object TabBasic: TTabSheet
-      Caption = 'CRUD Básico (JSONPlaceholder)'
+      Caption = 'CRUD B'#225#161'sico (JSONPlaceholder)'
       object BtnGetTasks: TButton
         Left = 16
         Top = 16
@@ -70,7 +70,7 @@ object FrmMain: TFrmMain
       end
     end
     object TabAdvanced: TTabSheet
-      Caption = 'Avançado (HTTPBin)'
+      Caption = 'Avan'#231'ado (HTTPBin)'
       ImageIndex = 1
       object BtnUpload: TButton
         Left = 16
@@ -100,12 +100,12 @@ object FrmMain: TFrmMain
       end
     end
     object TabAuth: TTabSheet
-      Caption = 'Autenticação'
+      Caption = 'Autentica'#231#227'o'
       ImageIndex = 2
       object Label1: TLabel
         Left = 16
         Top = 56
-        Width = 66
+        Width = 81
         Height = 13
         Caption = 'Token de Acesso'
       end

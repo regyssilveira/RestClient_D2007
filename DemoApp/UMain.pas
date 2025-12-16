@@ -1,4 +1,4 @@
-unit UMain;
+﻿unit UMain;
 
 interface
 
@@ -211,10 +211,6 @@ begin
   Log('Testando Gerenciador de Token (Mock)...');
   // Isso requer um servidor Auth adequado ou implementação mock.
   // Por enquanto, vamos apenas simular a definição manual do token ou chamar o método da interface, se aplicável.
-  
-  // NOTA: A interface IRestClient atual tem ObterToken, mas verificar os detalhes da implementação
-  // pode ser necessário para ver se funciona sem um endpoint real.
-  // Vamos assumir que está configurado na construção.
   
   MemoAuthToken.Text := 'A funcionalidade de token requer um endpoint OAuth2 válido configurado no construtor do TRestClient.';
 end;
