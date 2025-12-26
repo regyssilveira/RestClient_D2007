@@ -16,7 +16,7 @@ type
     FClientSecret: string;
     FAccessToken: string;
     FExpiresAt: TDateTime;
-    FClient: IRestClient;
+    FClient: Pointer;
     function GetClient: IRestClient;
     procedure RequestNewToken;
   public
@@ -59,13 +59,13 @@ end;
 
 procedure TOAuthTokenManager.SetClient(const AClient: IRestClient);
 begin
-  FClient := AClient;
+  FClient := Pointer(AClient);
 end;
 
 function TOAuthTokenManager.GetClient: IRestClient;
 begin
   if FClient <> nil then
-    Result := FClient
+    Result := IRestClient(FClient)
   else
     Result := nil;
 end;
