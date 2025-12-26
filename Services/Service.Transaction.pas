@@ -1,4 +1,4 @@
-unit Service.Transaction;
+﻿unit Service.Transaction;
 
 interface
 
@@ -101,7 +101,7 @@ end;
 
 constructor TTransactionService.Create(const ABaseURL, ATokenEndpoint, AClientId, AClientSecret: string);
 begin
-  FClient := TRestClient.Create(ABaseURL, rtWinInet, ATokenEndpoint, AClientId, AClientSecret);
+  FClient := TRestClient.Create(ABaseURL, ATokenEndpoint, AClientId, AClientSecret, rtWinInet);
 end;
 
 function TTransactionService.GetOnLog: TLogEvent;

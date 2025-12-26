@@ -4,26 +4,28 @@ interface
 
 uses
   Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
-  Dialogs, StdCtrls;
+  Dialogs, StdCtrls, ComCtrls;
 
 type
   TFrmMain = class(TForm)
     GroupBox1: TGroupBox;
     BtnUATObterToken: TButton;
-    Button2: TButton;
     BtnUATCREDIT: TButton;
     BtnUATSaldo: TButton;
     BtnUATDebit: TButton;
+    PageControl1: TPageControl;
+    TabSheet1: TTabSheet;
+    TabSheet2: TTabSheet;
     Memo1: TMemo;
+    Memo2: TMemo;
     procedure BtnUATObterTokenClick(Sender: TObject);
-    procedure Button2Click(Sender: TObject);
     procedure BtnUATCREDITClick(Sender: TObject);
     procedure BtnUATSaldoClick(Sender: TObject);
     procedure BtnUATDebitClick(Sender: TObject);
   private
     { Private declarations }
   public
-    { Public declarations }
+    procedure Logar(const AMsg: string);
   end;
 
 var
@@ -38,26 +40,18 @@ uses
   RestClient.Core,
   Service.Transaction;
 
+const
+  UrlAPI    = 'https://api.cre.uatesb.local/api/ce-core-banking-service/v1';
+  UrlToken  = 'https://api.cre.uatesb.local/oauth/token';
+  UsuarioWs = 'srvc.web-bff.service.uat';
+  SenhaWs   = 'NB9w7J66*PG5h6Cg';
+
 {$R *.dfm}
 
-procedure TFrmMain.Button2Click(Sender: TObject);
-var
-  LClient: IRestClient;
-  LResponse: IRestResponse;
+procedure TFrmMain.Logar(const AMsg: string);
 begin
-  LClient := TRestClient.Create(
-    'https://ce-api.bancointer.com.br/oauth/token',
-    rtIndy
-  );
-
-  LResponse := LClient.CreateRequest
-    .AddPart('grant_type', 'client_credentials')
-    .AddPart('client_id', '7a0c6e2f-aeb1-4d50-bcf1-5df1c61a9668')
-    .AddPart('client_secret', '95f46fd7-882a-4890-8402-af6b5669566a')
-    .AddPart('scope', 'ce-imp-api:write ce-imp-api:read')
-    .Execute(rmPOST);
-
-  ShowMessage(LResponse.Content);
+  Memo2.Lines.Add('');
+  Memo2.Lines.Add(AMsg);
 end;
 
 procedure TFrmMain.BtnUATObterTokenClick(Sender: TObject);
@@ -66,13 +60,9 @@ var
   Token: String;
 begin
   try
-    LClient := TRestClient.Create(
-      'https://api.cre.uatesb.local/api/ce-core-banking-service/v1',
-      rtWinInet,
-      'https://api.cre.uatesb.local/oauth/token',
-      'srvc.web-bff.service.uat',
-      'NB9w7J66*PG5h6Cg'
-    );
+    LClient := TRestClient.Create(UrlAPI, UrlToken, UsuarioWs, SenhaWs);
+    LClient.OnLog := Logar;
+
     Token := LClient.CreateRequest
       .ObterToken;
 
@@ -91,12 +81,8 @@ var
   LService: ITransactionService;
   LBalance: TBalanceDTO;
 begin
-  LService := TTransactionService.Create(
-    'https://api.cre.uatesb.local/api/ce-core-banking-service/v1',
-    'https://api.cre.uatesb.local/oauth/token',
-    'srvc.web-bff.service.uat',
-    'NB9w7J66*PG5h6Cg'
-  );
+  LService := TTransactionService.Create(UrlAPI, UrlToken, UsuarioWs, SenhaWs);
+  LService.OnLog := Logar;
 
   try
     LBalance := LService.GetSaldo('0010261290', '00019', 'INTERCREDPJ');
@@ -132,12 +118,8 @@ begin
   Memo1.Lines.Add('Operação de CREDITO');
 
   try
-    LService := TTransactionService.Create(
-      'https://api.cre.uatesb.local/api/ce-core-banking-service/v1',
-      'https://api.cre.uatesb.local/oauth/token',
-      'srvc.web-bff.service.uat',
-      'NB9w7J66*PG5h6Cg'
-    );
+    LService := TTransactionService.Create(UrlAPI, UrlToken, UsuarioWs, SenhaWs);
+    LService.OnLog := Logar;
 
     OperationId := LService.Credit(
      '0010261290',
@@ -171,13 +153,9 @@ begin
   Memo1.Lines.Add('Operação de DEBITO');
 
   try
-    LService := TTransactionService.Create(
-      'https://api.cre.uatesb.local/api/ce-core-banking-service/v1',
-      'https://api.cre.uatesb.local/oauth/token',
-      'srvc.web-bff.service.uat',
-      'NB9w7J66*PG5h6Cg'
-    );
-
+    LService := TTransactionService.Create(UrlAPI, UrlToken, UsuarioWs, SenhaWs);
+    LService.OnLog := Logar;
+    
     OperationId := LService.Debit(
      '0010261290',
      '00019',

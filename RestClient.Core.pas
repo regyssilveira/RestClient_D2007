@@ -43,7 +43,7 @@ type
     function ExecuteRequestIndy(ARequest: IRestRequest; AMethod: THTTPMethod): IRestResponse;
     function ExecuteRequestWinInet(ARequest: IRestRequest; AMethod: THTTPMethod): IRestResponse;
   public
-    constructor Create(const ABaseURL: string; AType: TRestClientType = rtIndy; const ATokenEndpoint: String = ''; const AClientId: String = ''; const AClientSecret: string = '');
+    constructor Create(const ABaseURL: string; const ATokenEndpoint: String = ''; const AClientId: String = ''; const AClientSecret: string = ''; AType: TRestClientType = rtWinInet);
     destructor Destroy; override;
 
     function CreateRequest: IRestRequest;
@@ -72,7 +72,7 @@ uses
 const
   C_USER_AGENT = 'InterCredPJ (compatible; Delphi 2007)';
 
-constructor TRestClient.Create(const ABaseURL: string; AType: TRestClientType = rtIndy; const ATokenEndpoint: String = ''; const AClientId: String = ''; const AClientSecret: string = '');
+constructor TRestClient.Create(const ABaseURL: string; const ATokenEndpoint: String = ''; const AClientId: String = ''; const AClientSecret: string = ''; AType: TRestClientType = rtWinInet);
 begin
   inherited Create;
 
