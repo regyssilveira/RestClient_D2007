@@ -35,14 +35,31 @@ type
     property NetBalanceValue: Double read FNetBalanceValue write FNetBalanceValue;
   end;
 
+  TTransactionDTO = class(TJsonDTO)
+  private
+    FRequestingService: string;
+    FAccountNumber: string;
+    FSagaOperationId: string;
+    FStatus: string;
+    FMessage: string;
+    FOperationNumber: string;
+  published
+    property RequestingService: string read FRequestingService write FRequestingService;
+    property AccountNumber: string read FAccountNumber write FAccountNumber;
+    property SagaOperationId: string read FSagaOperationId write FSagaOperationId;
+    property Status: string read FStatus write FStatus;
+    property Message: string read FMessage write FMessage;
+    property OperationNumber: string read FOperationNumber write FOperationNumber;
+  end;
+
   ITransactionService = interface
     ['{B2A99E3D-2F8C-49D3-8E56-7B8C9A0F1E2D}']
-    function GetSaldo(const AAccountNumber, ABankBranch, AOriginSystem: string): TBalanceDTO;
-    procedure Reversal(AAccountNumber, AComplement, AOperationIdSource, AUserCode: String; ADateMovement: TDateTime);
+    function GetSaldo(const AAccountNumber, ABankBranch: string): TBalanceDTO;
+    function Reversal(AAccountNumber, AComplement, AOperationIdSource, AUserCode: String; ADateMovement: TDateTime): TTransactionDTO;
     function Credit(AAccountNumber, AOriginAgencyCode, ADocumentNumber, AComplement,
-      AUserCode: String; AValueMovement: Double; ADateMovement: TDateTime): String;
+      AUserCode: String; AValueMovement: Double; ADateMovement: TDateTime): TTransactionDTO;
     function Debit(AAccountNumber, AOriginAgencyCode, ADocumentNumber, AComplement,
-      AUserCode: String; AValueMovement: Double; ADateMovement: TDateTime): String;
+      AUserCode: String; AValueMovement: Double; ADateMovement: TDateTime): TTransactionDTO;
       
     function GetOnLog: TLogEvent;
     procedure SetOnLog(const Value: TLogEvent);
@@ -53,15 +70,15 @@ type
   private
     FClient: IRestClient;
     function Movement(ATransactionType: TTransactionType; AHistoricalCode, AAccountNumber, AOriginAgencyCode, ADocumentNumber, AComplement,
-      AUserCode: String; AValueMovement: Double; ADateMovement: TDateTime): String;
+      AUserCode: String; AValueMovement: Double; ADateMovement: TDateTime): TTransactionDTO;
   public
     constructor Create(const ABaseURL, ATokenEndpoint, AClientId, AClientSecret: string);
-    function GetSaldo(const AAccountNumber, ABankBranch, AOriginSystem: string): TBalanceDTO;
-    procedure Reversal(AAccountNumber, AComplement, AOperationIdSource, AUserCode: String; ADateMovement: TDateTime);
+    function GetSaldo(const AAccountNumber, ABankBranch: string): TBalanceDTO;
+    function Reversal(AAccountNumber, AComplement, AOperationIdSource, AUserCode: String; ADateMovement: TDateTime): TTransactionDTO;
     function Credit(AAccountNumber, AOriginAgencyCode, ADocumentNumber, AComplement,
-      AUserCode: String; AValueMovement: Double; ADateMovement: TDateTime): String;
+      AUserCode: String; AValueMovement: Double; ADateMovement: TDateTime): TTransactionDTO;
     function Debit(AAccountNumber, AOriginAgencyCode, ADocumentNumber, AComplement,
-      AUserCode: String; AValueMovement: Double; ADateMovement: TDateTime): String;
+      AUserCode: String; AValueMovement: Double; ADateMovement: TDateTime): TTransactionDTO;
       
     function GetOnLog: TLogEvent;
     procedure SetOnLog(const Value: TLogEvent);
@@ -114,7 +131,7 @@ begin
   FClient.OnLog := Value;
 end;
 
-function TTransactionService.GetSaldo(const AAccountNumber, ABankBranch, AOriginSystem: string): TBalanceDTO;
+function TTransactionService.GetSaldo(const AAccountNumber, ABankBranch: string): TBalanceDTO;
 var
   LResponse: IRestResponse;
 begin
@@ -124,7 +141,7 @@ begin
       .Resource('/account/balance')
       .AddHeader('accountNumber', AAccountNumber)
       .AddHeader('bankBranch', ABankBranch)
-      .AddHeader('originSystem', AOriginSystem)
+      .AddHeader('originSystem', ORIGIN_SYSTEM)
       .Execute(rmGET);
 
     if LResponse.StatusCode = 200 then
@@ -137,12 +154,14 @@ begin
   end;
 end;
 
-procedure TTransactionService.Reversal(AAccountNumber, AComplement, AOperationIdSource, AUserCode: String; ADateMovement: TDateTime);
+function TTransactionService.Reversal(AAccountNumber, AComplement, AOperationIdSource, AUserCode: String; ADateMovement: TDateTime): TTransactionDTO;
 var
   LResponse: IRestResponse;
   JSonRequest: ISuperObject;
   JsonResponse: ISuperObject;
 begin
+  Result := nil;
+
   JSonRequest := SO;
   JSonRequest.S['accountNumber']     := AAccountNumber;
   JSonRequest.S['originSystem']      := ORIGIN_SYSTEM;
@@ -170,6 +189,11 @@ begin
           JsonResponse.S['status'],
           JsonResponse.S['message']
         ]);
+      end
+      else
+      begin
+        Result := TTransactionDTO.Create;
+        Result.FromJson(LResponse.ContentAsJson)
       end;
     end
     else
@@ -187,13 +211,15 @@ end;
 
 function TTransactionService.Movement(ATransactionType: TTransactionType; AHistoricalCode, AAccountNumber,
   AOriginAgencyCode, ADocumentNumber, AComplement, AUserCode: String;
-  AValueMovement: Double; ADateMovement: TDateTime): String;
+  AValueMovement: Double; ADateMovement: TDateTime): TTransactionDTO;
 var
   LResponse: IRestResponse;
   JSonRequest: ISuperObject;
   JsonResponse: ISuperObject;
-  JsonString: String;
+  SagaOperationId: String;
 begin
+  Result := nil;
+
   // chamar o transaction operation
   // chamar o transaction movement
   // se der erro então chamar o reversal  (DK_ERROR, ORIGIN_ERROR, ERROR)
@@ -204,8 +230,6 @@ begin
   JSonRequest.S['requestingService'] := 'ce-installment-amortization';
   JSonRequest.S['accountNumber']     := AAccountNumber;
   JSonRequest.S['description']       := TTransactionTypeHelper.ToString(ATransactionType);
-
-  JsonString := JSonRequest.AsJSon;
 
   // operation
   LResponse := FClient.CreateRequest
@@ -229,7 +253,7 @@ begin
       end;
 
       // captura o operation id para utilização futura e retorno
-      Result := JsonResponse.S['sagaOperationId'];
+      SagaOperationId := JsonResponse.S['sagaOperationId'];
 
       // se operation ocorreu bem, chama o movement para a ação
       // movement
@@ -242,12 +266,10 @@ begin
       JSonRequest.I['channel']          := 0;
       JSonRequest.S['accountNumber']    := AAccountNumber;
       JSonRequest.S['originAgencyCode'] := AOriginAgencyCode;
-      JSonRequest.S['sagaOperationId']  := Result;
+      JSonRequest.S['sagaOperationId']  := SagaOperationId;
       JSonRequest.D['valueMovement']    := AValueMovement;
       JSonRequest.S['complement']       := AComplement;
       JSonRequest.S['userCode']         := AUserCode;
-
-      JsonString := JSonRequest.AsJSon;
 
       LResponse := FClient.CreateRequest
         .Resource('/transaction-dk/movement')
@@ -262,7 +284,7 @@ begin
           if LResponse.IsError then
           begin
             // chamar o reversal em caso de retorno de erro
-            Self.Reversal(AAccountNumber, '', Result, AUserCode, ADateMovement);
+            Self.Reversal(AAccountNumber, '', SagaOperationId, AUserCode, ADateMovement);
 
             raise Exception.CreateFmt(
               'Movement Transacation Error: %s - %s'#13#10'%s', [
@@ -270,6 +292,11 @@ begin
               JsonResponse.S['status'],
               JsonResponse.S['message']
             ]);
+          end
+          else
+          begin
+            Result := TTransactionDTO.Create;
+            Result.FromJson(LResponse.ContentAsJson)
           end;
         end
         else
@@ -292,7 +319,7 @@ begin
 end;
 
 function TTransactionService.Credit(AAccountNumber, AOriginAgencyCode, ADocumentNumber, AComplement,
-  AUserCode: String; AValueMovement: Double; ADateMovement: TDateTime): String;
+  AUserCode: String; AValueMovement: Double; ADateMovement: TDateTime): TTransactionDTO;
 begin
   Result := Self.Movement(
     ttCredito,
@@ -308,7 +335,7 @@ begin
 end;
 
 function TTransactionService.Debit(AAccountNumber, AOriginAgencyCode, ADocumentNumber, AComplement,
-  AUserCode: String; AValueMovement: Double; ADateMovement: TDateTime): String;
+  AUserCode: String; AValueMovement: Double; ADateMovement: TDateTime): TTransactionDTO;
 begin
   Result := Self.Movement(
     ttDebito,

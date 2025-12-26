@@ -46,6 +46,11 @@ const
   UsuarioWs = 'srvc.web-bff.service.uat';
   SenhaWs   = 'NB9w7J66*PG5h6Cg';
 
+  // dados para testes
+  ContaNumero = '0010261290';
+  AgenciaNumero = '00019';
+  Usuario = 'BIXXXXX';
+
 {$R *.dfm}
 
 procedure TFrmMain.Logar(const AMsg: string);
@@ -85,20 +90,23 @@ begin
   LService.OnLog := Logar;
 
   try
-    LBalance := LService.GetSaldo('0010261290', '00019', 'INTERCREDPJ');
-    try
-      Memo1.Lines.Add('');
-      Memo1.Lines.Add('Dados lidos da resposta:');
-      Memo1.Lines.Add('balanceValue: '                 + FloatToStr(LBalance.BalanceValue));
-      //Memo1.Lines.Add('balanceBlockedCheck: '          + FloatToStr(LBalance.BalanceBlockedCheck));
-      //Memo1.Lines.Add('balanceBlockedAdministrative: ' + FloatToStr(LBalance.balanceBlockedAdministrative));
-      //Memo1.Lines.Add('balanceBlockedJudicial: '       + FloatToStr(LBalance.BalanceBlockedJudicial));
-      //Memo1.Lines.Add('balanceBlockedSpecial: '        + FloatToStr(LBalance.BalanceBlockedSpecial));
-      //Memo1.Lines.Add('balanceProvisioned: '           + FloatToStr(LBalance.BalanceProvisioned));
-      //Memo1.Lines.Add('valueLimit: '                   + FloatToStr(LBalance.ValueLimit));
-      Memo1.Lines.Add('netBalanceValue: '              + FloatToStr(LBalance.NetBalanceValue));
-    finally
-      LBalance.Free;
+    LBalance := LService.GetSaldo(ContaNumero, AgenciaNumero);
+    if LBalance <> nil then
+    begin
+      try
+        Memo1.Lines.Add('');
+        Memo1.Lines.Add('Dados lidos da resposta:');
+        Memo1.Lines.Add('balanceValue: '                 + FloatToStr(LBalance.BalanceValue));
+        //Memo1.Lines.Add('balanceBlockedCheck: '          + FloatToStr(LBalance.BalanceBlockedCheck));
+        //Memo1.Lines.Add('balanceBlockedAdministrative: ' + FloatToStr(LBalance.balanceBlockedAdministrative));
+        //Memo1.Lines.Add('balanceBlockedJudicial: '       + FloatToStr(LBalance.BalanceBlockedJudicial));
+        //Memo1.Lines.Add('balanceBlockedSpecial: '        + FloatToStr(LBalance.BalanceBlockedSpecial));
+        //Memo1.Lines.Add('balanceProvisioned: '           + FloatToStr(LBalance.BalanceProvisioned));
+        //Memo1.Lines.Add('valueLimit: '                   + FloatToStr(LBalance.ValueLimit));
+        Memo1.Lines.Add('netBalanceValue: '              + FloatToStr(LBalance.NetBalanceValue));
+      finally
+        LBalance.Free;
+      end;
     end;
   except
     on E: Exception do
@@ -112,26 +120,37 @@ end;
 procedure TFrmMain.BtnUATCREDITClick(Sender: TObject);
 var
   LService: ITransactionService;
-  OperationId: String;
+  LTransaction: TTransactionDTO;
+  NumeroDocumento: String;
 begin
   Memo1.Lines.Add('');
   Memo1.Lines.Add('Operação de CREDITO');
+
+  // numero fake para testes
+  NumeroDocumento := FormatDateTime('YYYYMMDDHHMMSSZZZ', NOW);
 
   try
     LService := TTransactionService.Create(UrlAPI, UrlToken, UsuarioWs, SenhaWs);
     LService.OnLog := Logar;
 
-    OperationId := LService.Credit(
-     '0010261290',
-     '00019',
-     '03300974000189',
-     '',
-     'BIXXXXX',
-     12599.11,
-     Now,
+    LTransaction := LService.Credit(
+      ContaNumero,
+      AgenciaNumero,
+      NumeroDocumento,
+      '',
+      Usuario,
+      12599.11,
+      Now
     );
 
-    Memo1.Lines.Add('OperationId: ' + OperationId);
+    if LTransaction <> nil then
+    begin
+      try
+        Memo1.Lines.Add('SagaOperationId: ' + LTransaction.SagaOperationId + ', OperationNumber: ' + LTransaction.OperationNumber);
+      finally
+        LTransaction.Free;
+      end;
+    end;
   except
     on E: Exception do
     begin
@@ -147,26 +166,37 @@ end;
 procedure TFrmMain.BtnUATDebitClick(Sender: TObject);
 var
   LService: ITransactionService;
-  OperationId: String;
+  LTransaction: TTransactionDTO;
+  NumeroDocumento: String;  
 begin
   Memo1.Lines.Add('');
   Memo1.Lines.Add('Operação de DEBITO');
+
+  // numero fake para testes
+  NumeroDocumento := FormatDateTime('YYYYMMDDHHMMSSZZZ', NOW);
 
   try
     LService := TTransactionService.Create(UrlAPI, UrlToken, UsuarioWs, SenhaWs);
     LService.OnLog := Logar;
     
-    OperationId := LService.Debit(
-     '0010261290',
-     '00019',
-     '03300974000189',
-     '',
-     'BIXXXXX',
-     12599.11,
-     Now,
+    LTransaction := LService.Debit(
+      ContaNumero,
+      AgenciaNumero,
+      NumeroDocumento,
+      '',
+      Usuario,
+      12599.11,
+      Now
     );
 
-    Memo1.Lines.Add('OperationId: ' + OperationId);
+    if LTransaction <> nil then
+    begin
+      try
+        Memo1.Lines.Add('SagaOperationId: ' + LTransaction.SagaOperationId + ', OperationNumber: ' + LTransaction.OperationNumber);
+      finally
+        LTransaction.Free;
+      end;
+    end;
   except
     on E: Exception do
     begin
