@@ -34,6 +34,7 @@ type
     FIdHTTP: TIdHTTP;
     FSSLHandler: TIdSSLIOHandlerSocketOpenSSL;
     FType: TRestClientType;
+    FOnLog: TLogEvent;
 
     function SSLVerifyPeer(Certificate: TIdX509; AOk: Boolean; ADepth, AError: Integer): Boolean;
     function BuildFullUrl(const AUrl: string; AParams: TStrings): string;
@@ -48,6 +49,10 @@ type
     function CreateRequest: IRestRequest;
     function GetBaseURL: string;
     procedure SetBaseURL(const AValue: string);
+
+    function GetOnLog: TLogEvent;
+    procedure SetOnLog(const Value: TLogEvent);
+    procedure Log(const AMsg: string);
 
     function ExecuteRequest(ARequest: IRestRequest; AMethod: THTTPMethod): IRestResponse;
     function ObterToken: String;
@@ -154,6 +159,22 @@ end;
 procedure TRestClient.SetBaseURL(const AValue: string);
 begin
   FBaseURL := AValue;
+end;
+
+function TRestClient.GetOnLog: TLogEvent;
+begin
+  Result := FOnLog;
+end;
+
+procedure TRestClient.SetOnLog(const Value: TLogEvent);
+begin
+  FOnLog := Value;
+end;
+
+procedure TRestClient.Log(const AMsg: string);
+begin
+  if Assigned(FOnLog) then
+    FOnLog(AMsg);
 end;
 
 function TRestClient.ObterToken: String;

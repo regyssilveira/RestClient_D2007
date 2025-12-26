@@ -8,6 +8,8 @@ uses
 type
   THTTPMethod = (rmGET, rmPOST, rmPUT, rmDELETE, rmPATCH);
 
+  TLogEvent = procedure(const AMsg: string) of object;
+
   IRestResponse = interface
     ['{10000000-0000-0000-0000-000000000001}']
     function GetStatusCode: Integer;
@@ -53,7 +55,13 @@ type
     function ExecuteRequest(ARequest: IRestRequest; AMethod: THTTPMethod): IRestResponse;
     function ObterToken: String;
     procedure TratarRetornoNaoEsperado(LResponseContent: string);
+    
+    function GetOnLog: TLogEvent;
+    procedure SetOnLog(const Value: TLogEvent);
+    procedure Log(const AMsg: string);
+    
     property BaseURL: string read GetBaseURL write SetBaseURL;
+    property OnLog: TLogEvent read GetOnLog write SetOnLog;
   end;
 
   IOAuthTokenManager = interface
