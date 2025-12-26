@@ -2,7 +2,8 @@ program RestClient_Demo;
 
 uses
   Forms,
-  UMain in 'UMain.pas' {FrmMain};
+  UMain in 'UMain.pas' {FrmMain},
+  Service.Transaction.DTO in '..\Services\Service.Transaction.DTO.pas';
 
 {$R *.res}
 

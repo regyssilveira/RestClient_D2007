@@ -39,7 +39,8 @@ uses
   RestClient.Interfaces,
   RestClient.Response,
   RestClient.Core,
-  Service.Transaction;
+  Service.Transaction,
+  Service.Transaction.DTO;
 
 const
   UrlAPI    = 'https://api.cre.uatesb.local/api/ce-core-banking-service/v1';
