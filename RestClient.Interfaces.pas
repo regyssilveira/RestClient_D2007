@@ -15,6 +15,7 @@ type
     function GetHeader(const AName: string): string;
     function ContentAsJson: ISuperObject;
     function GetHeaders: String;
+    function IsError: Boolean;
     property StatusCode: Integer read GetStatusCode;
     property Content: string read GetContent;
     property Headers: String read GetHeaders;
@@ -51,6 +52,7 @@ type
     procedure SetBaseURL(const AValue: string);
     function ExecuteRequest(ARequest: IRestRequest; AMethod: THTTPMethod): IRestResponse;
     function ObterToken: String;
+    procedure TratarRetornoNaoEsperado(LResponseContent: string);
     property BaseURL: string read GetBaseURL write SetBaseURL;
   end;
 

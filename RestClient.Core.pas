@@ -48,10 +48,17 @@ type
     function CreateRequest: IRestRequest;
     function GetBaseURL: string;
     procedure SetBaseURL(const AValue: string);
-    
+
     function ExecuteRequest(ARequest: IRestRequest; AMethod: THTTPMethod): IRestResponse;
     function ObterToken: String;
+    procedure TratarRetornoNaoEsperado(LResponseContent: string);
   end;
+
+const
+  ORIGIN_SYSTEM            = 'INTERCREDPJ';
+  HISTORICAL_CODE_REVERSAL = '07320';
+  HISTORICAL_CODE_DEBIT    = '07129';
+  HISTORICAL_CODE_CREDIT   = '08179';
 
 implementation
 
@@ -157,6 +164,42 @@ begin
     Result := '';
 end;
 
+procedure TRestClient.TratarRetornoNaoEsperado(LResponseContent: string);
+var
+  LJsonObj: ISuperObject;
+  MsgError: string;
+  LNotificationObj: ISuperObject;
+  LNotifications: ISuperArray;
+begin
+  LJsonObj := SO(LResponseContent);
+  if Assigned(LJsonObj) then
+  begin
+    MsgError := '';
+
+    if (LJsonObj.S['detailMessage'] <> '') then
+    begin
+      MsgError := Format('%s, %s - %d', [
+        LJsonObj.S['status'],
+        LJsonObj.S['detailMessage'],
+        LJsonObj.I['detailMessageCode']
+      ]);
+
+      LNotifications := LJsonObj.A['notifications'];
+      if Assigned(LNotifications) then
+      begin
+        if LNotifications.Length > 0 then
+        begin
+          for LNotificationObj in LNotifications do
+            MsgError := MsgError + sLineBreak + Format('%s - %s, %s', [LNotificationObj.S['type'], LNotificationObj.S['title'], LNotificationObj.S['content']]);
+        end;
+      end;
+    end;
+
+    if Trim(MsgError) <> '' then
+      raise Exception.Create(Trim(MsgError));
+  end;
+end;
+
 function TRestClient.ExecuteRequest(ARequest: IRestRequest; AMethod: THTTPMethod): IRestResponse;
 begin
   case FType of
@@ -180,7 +223,6 @@ var
   LURLPort: Word;
   LMethodStr: string;
   LFullUrl: string;
-  LParams: TStrings;
   I: Integer;
   LDataStream: TStream;
   LMultiPart: TIdMultiPartFormDataStream;
@@ -198,7 +240,6 @@ var
   LSlashPos, LColonPos: Integer;
   LFlags: DWORD;
   LResponseContent: string;
-  LJsonObj: ISuperObject;
 begin
   Result := nil;
   LDataStream := nil;
@@ -207,260 +248,244 @@ begin
   LRawHeaders := TStringList.Create;
   try
     LRawHeaders.Text := '';
-    try
-      LFullUrl := BuildFullUrl(ARequest.GetFullUrl, ARequest.GetParams);
+    LFullUrl := BuildFullUrl(ARequest.GetFullUrl, ARequest.GetParams);
 
-      LTempUrl := LFullUrl;
-      LIsSSL := False;
-      LURLPort := 0;
+    LTempUrl := LFullUrl;
+    LIsSSL := False;
+    LURLPort := 0;
 
-      if Pos('https://', LowerCase(LTempUrl)) = 1 then
-      begin
-        LIsSSL := True;
-        Delete(LTempUrl, 1, 8);
-        LURLPort := 443;
-      end
-      else if Pos('http://', LowerCase(LTempUrl)) = 1 then
-      begin
-        Delete(LTempUrl, 1, 7);
-        LURLPort := 80;
-      end;
+    if Pos('https://', LowerCase(LTempUrl)) = 1 then
+    begin
+      LIsSSL := True;
+      Delete(LTempUrl, 1, 8);
+      LURLPort := 443;
+    end
+    else if Pos('http://', LowerCase(LTempUrl)) = 1 then
+    begin
+      Delete(LTempUrl, 1, 7);
+      LURLPort := 80;
+    end;
 
-      LSlashPos := Pos('/', LTempUrl);
-      if LSlashPos > 0 then
-      begin
-        LURLHost := Copy(LTempUrl, 1, LSlashPos - 1);
-        LURLPath := Copy(LTempUrl, LSlashPos, Length(LTempUrl));
-      end
-      else
-      begin
-        LURLHost := LTempUrl;
-        LURLPath := '/';
-      end;
+    LSlashPos := Pos('/', LTempUrl);
+    if LSlashPos > 0 then
+    begin
+      LURLHost := Copy(LTempUrl, 1, LSlashPos - 1);
+      LURLPath := Copy(LTempUrl, LSlashPos, Length(LTempUrl));
+    end
+    else
+    begin
+      LURLHost := LTempUrl;
+      LURLPath := '/';
+    end;
       
-      LColonPos := Pos(':', LURLHost);
-      if LColonPos > 0 then
-      begin
-        LURLPort := StrToIntDef(Copy(LURLHost, LColonPos + 1, Length(LURLHost)), LURLPort);
-        LURLHost := Copy(LURLHost, 1, LColonPos - 1);
-      end;
+    LColonPos := Pos(':', LURLHost);
+    if LColonPos > 0 then
+    begin
+      LURLPort := StrToIntDef(Copy(LURLHost, LColonPos + 1, Length(LURLHost)), LURLPort);
+      LURLHost := Copy(LURLHost, 1, LColonPos - 1);
+    end;
 
-      if LURLPort = 0 then
-        LURLPort := 80;
+    if LURLPort = 0 then
+      LURLPort := 80;
 
-      case AMethod of
-        rmGET:    LMethodStr := 'GET';
-        rmPOST:   LMethodStr := 'POST';
-        rmPUT:    LMethodStr := 'PUT';
-        rmDELETE: LMethodStr := 'DELETE';
-        rmPATCH:  LMethodStr := 'PATCH';
-      end;
+    case AMethod of
+      rmGET:    LMethodStr := 'GET';
+      rmPOST:   LMethodStr := 'POST';
+      rmPUT:    LMethodStr := 'PUT';
+      rmDELETE: LMethodStr := 'DELETE';
+      rmPATCH:  LMethodStr := 'PATCH';
+    end;
 
-      if (AMethod in [rmPOST, rmPUT, rmPATCH]) then
-      begin
-          LParts := ARequest.GetParts;
-          if (LParts <> nil) and (LParts.Count > 0) then
-          begin
-             LMultiPart := TIdMultiPartFormDataStream.Create;
-             for I := 0 to LParts.Count - 1 do
-              begin
-                LPart := TRequestPart(LParts[I]);
-                if LPart.FileName <> '' then
-                  LMultiPart.AddFormField(LPart.Name, LPart.ContentType, LPart.Charset, LPart.Stream, LPart.FileName)
-                else
-                  LMultiPart.AddFormField(LPart.Name, UTF8Encode(LPart.Value));
-              end;
-              LDataStream := LMultiPart;
-          end
+    if (AMethod in [rmPOST, rmPUT, rmPATCH]) then
+    begin
+        LParts := ARequest.GetParts;
+        if (LParts <> nil) and (LParts.Count > 0) then
+        begin
+           LMultiPart := TIdMultiPartFormDataStream.Create;
+           for I := 0 to LParts.Count - 1 do
+            begin
+              LPart := TRequestPart(LParts[I]);
+              if LPart.FileName <> '' then
+                LMultiPart.AddFormField(LPart.Name, LPart.ContentType, LPart.Charset, LPart.Stream, LPart.FileName)
+              else
+                LMultiPart.AddFormField(LPart.Name, UTF8Encode(LPart.Value));
+            end;
+            LDataStream := LMultiPart;
+        end
+        else
+        begin
+            if ARequest.GetBody <> '' then
+            begin
+              LDataStream := TStringStream.Create(ARequest.GetBody);
+            end;
+        end;
+    end;
+
+    hInternet := InternetOpen(PChar(C_USER_AGENT),
+                              INTERNET_OPEN_TYPE_PRECONFIG, nil, nil, 0);
+    if hInternet = nil then RaiseLastOSError;
+      
+    try
+      LUser := nil;
+      if Trim(FClientId) <> '' then
+        LUser := PChar(FClientId);
+          
+      LPass := nil;
+      if Trim(FClientSecret) <> '' then
+        LPass := PChar(FClientSecret);
+
+      hConnect := InternetConnect(hInternet, PChar(LURLHost), LURLPort, 
+                                  LUser, 
+                                  LPass,
+                                  INTERNET_SERVICE_HTTP, 0, 0);
+                                    
+      if hConnect = nil then
+        RaiseLastOSError;
+        
+      try
+        LFlags := INTERNET_FLAG_RELOAD or INTERNET_FLAG_KEEP_CONNECTION;
+        if LIsSSL then
+          LFlags := LFlags or INTERNET_FLAG_SECURE or INTERNET_FLAG_IGNORE_CERT_CN_INVALID or INTERNET_FLAG_IGNORE_CERT_DATE_INVALID;
+            
+        hRequest := HttpOpenRequest(hConnect, PChar(LMethodStr), PChar(LURLPath), nil, nil, nil, LFlags, 0);
+        if hRequest = nil then
+          RaiseLastOSError;
+          
+        try
+          LHeaders := '';
+          if ARequest.GetBodyContentType = '' then
+            LHeaders := LHeaders + 'Accept: application/json' + #13#10
+          else
+            LHeaders := LHeaders + 'Accept: ' + ARequest.GetBodyContentType + #13#10;
+              
+          for I := 0 to ARequest.GetHeaders.Count - 1 do
+            LHeaders := LHeaders + ARequest.GetHeaders[I] + #13#10;
+            
+          if Assigned(FTokenManager) and (not ARequest.ShouldIgnoreToken) then
+            LHeaders := LHeaders + 'x-api-token:' + UTF8Encode(FTokenManager.GetAccessToken) + #13#10
           else
           begin
-              if ARequest.GetBody <> '' then
-              begin
-                LDataStream := TStringStream.Create(ARequest.GetBody);
-              end;
+             if (Trim(FClientId) <> '') and (Trim(FClientSecret) <> '') then
+             begin
+                LHeaders := LHeaders + 'Authorization: Basic ' + 
+                  EncodeString(Trim(FClientId) + ':' + Trim(FClientSecret)) + #13#10;
+             end;
           end;
-      end;
 
-      hInternet := InternetOpen(PChar(C_USER_AGENT),
-                                INTERNET_OPEN_TYPE_PRECONFIG, nil, nil, 0);
-      if hInternet = nil then RaiseLastOSError;
-      
-      try
-        LUser := nil;
-        if Trim(FClientId) <> '' then
-          LUser := PChar(FClientId);
-          
-        LPass := nil;
-        if Trim(FClientSecret) <> '' then
-          LPass := PChar(FClientSecret);
+          if Assigned(LMultiPart) then
+            LHeaders := LHeaders + 'Content-Type: ' + LMultiPart.RequestContentType + #13#10
+          else if ARequest.GetBodyContentType <> '' then
+            LHeaders := LHeaders + 'Content-Type: ' + ARequest.GetBodyContentType + #13#10;
 
-        hConnect := InternetConnect(hInternet, PChar(LURLHost), LURLPort, 
-                                    LUser, 
-                                    LPass,
-                                    INTERNET_SERVICE_HTTP, 0, 0);
-                                    
-        if hConnect = nil then
-          RaiseLastOSError;
-        
-        try
-          LFlags := INTERNET_FLAG_RELOAD or INTERNET_FLAG_KEEP_CONNECTION;
-          if LIsSSL then
-            LFlags := LFlags or INTERNET_FLAG_SECURE or INTERNET_FLAG_IGNORE_CERT_CN_INVALID or INTERNET_FLAG_IGNORE_CERT_DATE_INVALID;
+          HttpAddRequestHeaders(hRequest, PChar(LHeaders), Length(LHeaders), HTTP_ADDREQ_FLAG_ADD or HTTP_ADDREQ_FLAG_REPLACE);
             
-          hRequest := HttpOpenRequest(hConnect, PChar(LMethodStr), PChar(LURLPath), nil, nil, nil, LFlags, 0);
-          if hRequest = nil then
-            RaiseLastOSError;
-          
+          LPostSize := 0;
+          LPPostBuffer := nil;
+          if Assigned(LDataStream) then
+          begin
+            LDataStream.Position := 0;
+            LPostSize := LDataStream.Size;
+            if LPostSize > 0 then
+            begin
+              GetMem(LPPostBuffer, LPostSize);
+              LDataStream.Read(LPPostBuffer^, LPostSize);
+            end;
+          end;
+            
           try
-            LHeaders := '';
-            if ARequest.GetBodyContentType = '' then
-              LHeaders := LHeaders + 'Accept: application/json' + #13#10
-            else
-              LHeaders := LHeaders + 'Accept: ' + ARequest.GetBodyContentType + #13#10;
-              
-            for I := 0 to ARequest.GetHeaders.Count - 1 do
-              LHeaders := LHeaders + ARequest.GetHeaders[I] + #13#10;
-            
-            if Assigned(FTokenManager) and (not ARequest.ShouldIgnoreToken) then
-              LHeaders := LHeaders + 'x-api-token:' + UTF8Encode(FTokenManager.GetAccessToken) + #13#10
-            else
-            begin
-               if (Trim(FClientId) <> '') and (Trim(FClientSecret) <> '') then
+             LRetries := 0;
+             while True do
+             begin
+               if HttpSendRequest(hRequest, nil, 0, LPPostBuffer, LPostSize) then
+                 Break;
+                 
+               // ERROR_INTERNET_CLIENT_AUTH_CERT_NEEDED (12044)
+               if (GetLastError = 12044) and (LRetries = 0) then
                begin
-                  LHeaders := LHeaders + 'Authorization: Basic ' + 
-                    EncodeString(Trim(FClientId) + ':' + Trim(FClientSecret)) + #13#10;
+                 // INTERNET_OPTION_SECURITY_SELECT_CLIENT_CERT (87)
+                 // Select "no certificate" by passing nil/0 and retry
+                 InternetSetOption(hRequest, 87, nil, 0);
+                 Inc(LRetries);
+                 Continue;
                end;
-            end;
-
-            if Assigned(LMultiPart) then
-              LHeaders := LHeaders + 'Content-Type: ' + LMultiPart.RequestContentType + #13#10
-            else if ARequest.GetBodyContentType <> '' then
-              LHeaders := LHeaders + 'Content-Type: ' + ARequest.GetBodyContentType + #13#10;
-
-            HttpAddRequestHeaders(hRequest, PChar(LHeaders), Length(LHeaders), HTTP_ADDREQ_FLAG_ADD or HTTP_ADDREQ_FLAG_REPLACE);
+                 
+               RaiseLastOSError;
+             end;
+          finally
+            if Assigned(LPPostBuffer) then
+              FreeMem(LPPostBuffer);
+          end;
             
-            LPostSize := 0;
-            LPPostBuffer := nil;
-            if Assigned(LDataStream) then
-            begin
-              LDataStream.Position := 0;
-              LPostSize := LDataStream.Size;
-              if LPostSize > 0 then
-              begin
-                GetMem(LPPostBuffer, LPostSize);
-                LDataStream.Read(LPPostBuffer^, LPostSize);
-              end;
-            end;
+          LLen := SizeOf(DWORD);
+          LHeaderIndex := 0;
+          LStatusCode := 0;
+          if not HttpQueryInfo(hRequest, HTTP_QUERY_STATUS_CODE or HTTP_QUERY_FLAG_NUMBER, @LStatusCode, LLen, LHeaderIndex) then
+            LStatusCode := 0; 
             
+          LRawHeaders.Text := '';
+          LLen := 0;
+          LHeaderIndex := 0;
+          HttpQueryInfo(hRequest, HTTP_QUERY_RAW_HEADERS_CRLF, nil, LLen, LHeaderIndex);
+          if (GetLastError = ERROR_INSUFFICIENT_BUFFER) and (LLen > 0) then
+          begin
+            GetMem(LRawHeadersBuffer, LLen);
             try
-               LRetries := 0;
-               while True do
-               begin
-                 if HttpSendRequest(hRequest, nil, 0, LPPostBuffer, LPostSize) then
-                   Break;
-                 
-                 // ERROR_INTERNET_CLIENT_AUTH_CERT_NEEDED (12044)
-                 if (GetLastError = 12044) and (LRetries = 0) then
-                 begin
-                   // INTERNET_OPTION_SECURITY_SELECT_CLIENT_CERT (87)
-                   // Select "no certificate" by passing nil/0 and retry
-                   InternetSetOption(hRequest, 87, nil, 0);
-                   Inc(LRetries);
-                   Continue;
-                 end;
-                 
-                 RaiseLastOSError;
-               end;
+              if HttpQueryInfo(hRequest, HTTP_QUERY_RAW_HEADERS_CRLF, LRawHeadersBuffer, LLen, LHeaderIndex) then
+                LRawHeaders.Text := StrPas(LRawHeadersBuffer);
             finally
-              if Assigned(LPPostBuffer) then
-                FreeMem(LPPostBuffer);
+              FreeMem(LRawHeadersBuffer);
             end;
+          end;
             
-            LLen := SizeOf(DWORD);
-            LHeaderIndex := 0;
-            LStatusCode := 0;
-            if not HttpQueryInfo(hRequest, HTTP_QUERY_STATUS_CODE or HTTP_QUERY_FLAG_NUMBER, @LStatusCode, LLen, LHeaderIndex) then
-              LStatusCode := 0; 
-            
-            LRawHeaders.Text := '';
+          repeat
+            if not InternetReadFile(hRequest, @LBuffer, SizeOf(LBuffer), LBytesRead) then
+              Break;
+            if LBytesRead = 0 then Break;
+            LResponseBuffer.Write(LBuffer, LBytesRead);
+          until False;
+
+          if LResponseBuffer.Size = 0 then
+          begin
+            // Try to get Status Text if body is empty
             LLen := 0;
             LHeaderIndex := 0;
-            HttpQueryInfo(hRequest, HTTP_QUERY_RAW_HEADERS_CRLF, nil, LLen, LHeaderIndex);
+            HttpQueryInfo(hRequest, HTTP_QUERY_STATUS_TEXT, nil, LLen, LHeaderIndex);
             if (GetLastError = ERROR_INSUFFICIENT_BUFFER) and (LLen > 0) then
             begin
               GetMem(LRawHeadersBuffer, LLen);
               try
-                if HttpQueryInfo(hRequest, HTTP_QUERY_RAW_HEADERS_CRLF, LRawHeadersBuffer, LLen, LHeaderIndex) then
-                  LRawHeaders.Text := StrPas(LRawHeadersBuffer);
+                if HttpQueryInfo(hRequest, HTTP_QUERY_STATUS_TEXT, LRawHeadersBuffer, LLen, LHeaderIndex) then
+                  LResponseBuffer.WriteString(StrPas(LRawHeadersBuffer));
               finally
                 FreeMem(LRawHeadersBuffer);
               end;
             end;
-            
-            repeat
-              if not InternetReadFile(hRequest, @LBuffer, SizeOf(LBuffer), LBytesRead) then
-                Break;
-              if LBytesRead = 0 then Break;
-              LResponseBuffer.Write(LBuffer, LBytesRead);
-            until False;
-
-            if LResponseBuffer.Size = 0 then
-            begin
-              // Try to get Status Text if body is empty
-              LLen := 0;
-              LHeaderIndex := 0;
-              HttpQueryInfo(hRequest, HTTP_QUERY_STATUS_TEXT, nil, LLen, LHeaderIndex);
-              if (GetLastError = ERROR_INSUFFICIENT_BUFFER) and (LLen > 0) then
-              begin
-                GetMem(LRawHeadersBuffer, LLen);
-                try
-                  if HttpQueryInfo(hRequest, HTTP_QUERY_STATUS_TEXT, LRawHeadersBuffer, LLen, LHeaderIndex) then
-                    LResponseBuffer.WriteString(StrPas(LRawHeadersBuffer));
-                finally
-                  FreeMem(LRawHeadersBuffer);
-                end;
-              end;
-            end;
-
-            LResponseContent := UTF8ToAnsi(LResponseBuffer.DataString);
-
-            if LStatusCode >= 400 then
-            begin
-              LJsonObj := SO(LResponseContent);
-              if Assigned(LJsonObj) then
-              begin
-                if (LJsonObj.S['detailMessage'] <> '') then
-                begin
-                  raise Exception.Create(Format('%d - %s, %d - %s, "%s"',
-                    [
-                      LJsonObj.I['status'],
-                      LJsonObj.S['title'],
-                      LJsonObj.I['detailMessageCode'],
-                      LJsonObj.S['detailMessage'],
-                      LJsonObj.S['path']
-                    ])
-                  );
-                end;
-              end;
-
-              raise Exception.Create(Format('HTTP Error %d: %s', [LStatusCode, LResponseContent]));
-            end;
-
-            Result := TRestResponse.Create(LStatusCode, LResponseContent, LRawHeaders);
-          finally
-            InternetCloseHandle(hRequest);
           end;
+
+          LResponseContent := UTF8ToAnsi(LResponseBuffer.DataString);
+
+          if LStatusCode >= 400 then
+          begin
+            // erro de autenticação
+            if LStatusCode = 401 then
+              raise Exception.Create('Sem autorização de acesso (erro: 401)');
+
+            // erros geraris
+            TratarRetornoNaoEsperado(LResponseContent);
+
+            // qualquer erro não tratado
+            raise Exception.CreateFmt('HTTP Error %d: %s', [LStatusCode, LResponseContent]);
+          end;
+
+          Result := TRestResponse.Create(LStatusCode, LResponseContent, LRawHeaders);
         finally
-          InternetCloseHandle(hConnect);
+          InternetCloseHandle(hRequest);
         end;
       finally
-        InternetCloseHandle(hInternet);
+        InternetCloseHandle(hConnect);
       end;
-    except
-      on E: Exception do
-      begin
-         raise;
-      end;
+    finally
+      InternetCloseHandle(hInternet);
     end;
   finally
     LRawHeaders.Free;
@@ -577,7 +602,7 @@ begin
         if Assigned(LJsonObj) and (LJsonObj.S['detailMessage'] <> '') then
           raise Exception.Create(LJsonObj.S['detailMessage']);
           
-        raise Exception.Create(Format('HTTP Error %d: %s', [FIdHTTP.ResponseCode, LResponseContent]));
+        raise Exception.CreateFmt('HTTP Error %d: %s', [FIdHTTP.ResponseCode, LResponseContent]);
       end;
 
       on E: Exception do

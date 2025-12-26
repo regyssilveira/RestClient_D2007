@@ -19,6 +19,7 @@ type
     function GetContent: string;
     function GetHeader(const AName: string): string;
     function ContentAsJson: ISuperObject;
+    function IsError: Boolean;
   end;
 
 implementation
@@ -59,6 +60,16 @@ end;
 function TRestResponse.GetStatusCode: Integer;
 begin
   Result := FStatusCode;
+end;
+
+function TRestResponse.IsError: Boolean;
+var
+  Status: String;
+begin
+  Result := False;
+  Status := Trim(Self.ContentAsJson.S['status']);
+  if Status <> '' then
+    Result := Pos('ERROR', Status) > 0;
 end;
 
 function TRestResponse.ContentAsJson: ISuperObject;
