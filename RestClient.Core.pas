@@ -60,10 +60,7 @@ type
   end;
 
 const
-  ORIGIN_SYSTEM            = 'INTERCREDPJ';
-  HISTORICAL_CODE_REVERSAL = '07320';
-  HISTORICAL_CODE_DEBIT    = '07129';
-  HISTORICAL_CODE_CREDIT   = '08179';
+  ORIGIN_SYSTEM = 'INTERCREDPJ';
 
 implementation
 
@@ -337,6 +334,7 @@ begin
         begin
             if ARequest.GetBody <> '' then
             begin
+              Self.Log(ARequest.GetBody);
               LDataStream := TStringStream.Create(ARequest.GetBody);
             end;
         end;
@@ -484,6 +482,7 @@ begin
           end;
 
           LResponseContent := UTF8ToAnsi(LResponseBuffer.DataString);
+          Self.Log(LResponseContent);
 
           if LStatusCode >= 400 then
           begin

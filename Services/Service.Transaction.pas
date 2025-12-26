@@ -9,7 +9,7 @@ type
   TTransactionType = (ttCredito, ttDebito);
 
   // delphi 2007 não possui helpers para record (enum), então quebrar o galho utilizando isso
-  TTranscationTypeHelper = record
+  TTransactionTypeHelper = record
     class function ToString(const AValue: TTransactionType): String; static;
     class function FromString(const AValue: String): TTransactionType; static;
   end;
@@ -48,7 +48,7 @@ type
   TTransactionService = class(TInterfacedObject, ITransactionService)
   private
     FClient: IRestClient;
-    function Movement(ATransactionType: TTransactionType; AAccountNumber, AOriginAgencyCode, ADocumentNumber, AComplement,
+    function Movement(ATransactionType: TTransactionType; AHistoricalCode, AAccountNumber, AOriginAgencyCode, ADocumentNumber, AComplement,
       AUserCode: String; AValueMovement: Double; ADateMovement: TDateTime): String;
   public
     constructor Create(const ABaseURL, ATokenEndpoint, AClientId, AClientSecret: string);
@@ -62,9 +62,14 @@ type
 
 implementation
 
+const
+  HISTORICAL_CODE_REVERSAL = '07320';
+  HISTORICAL_CODE_DEBIT    = '07129';
+  HISTORICAL_CODE_CREDIT   = '08179';
+
 { TTranscationTypeHelper }
 
-class function TTranscationTypeHelper.FromString(const AValue: String): TTransactionType;
+class function TTransactionTypeHelper.FromString(const AValue: String): TTransactionType;
 begin
   if UpperCase(Trim(AValue)) = 'CREDIT' then
     Result := ttCredito
@@ -75,7 +80,7 @@ begin
     raise Exception.CreateFmt('Transação "%s" não reconhecida.', [AValue]);
 end;
 
-class function TTranscationTypeHelper.ToString(const AValue: TTransactionType): String;
+class function TTransactionTypeHelper.ToString(const AValue: TTransactionType): String;
 begin
   case AValue of
     ttCredito: Result := 'CREDIT';
@@ -129,6 +134,7 @@ begin
   JSonRequest.S['userCode']          := AUserCode;
   JSonRequest.S['dateMovement']      := FormatDateTime('YYYY-MM-DD', ADateMovement);
   JSonRequest.S['historicalCode']    := HISTORICAL_CODE_REVERSAL;
+
   LResponse := FClient.CreateRequest
     .Resource('/transaction-dk/reversal')
     .AddBody(JSonRequest)
@@ -162,7 +168,7 @@ begin
     FClient.TratarRetornoNaoEsperado(LResponse.Content);
 end;
 
-function TTransactionService.Movement(ATransactionType: TTransactionType; AAccountNumber,
+function TTransactionService.Movement(ATransactionType: TTransactionType; AHistoricalCode, AAccountNumber,
   AOriginAgencyCode, ADocumentNumber, AComplement, AUserCode: String;
   AValueMovement: Double; ADateMovement: TDateTime): String;
 var
@@ -170,22 +176,17 @@ var
   JSonRequest: ISuperObject;
   JsonResponse: ISuperObject;
   JsonString: String;
-  HistoricalCode: String;
 begin
   // chamar o transaction operation
   // chamar o transaction movement
   // se der erro então chamar o reversal  (DK_ERROR, ORIGIN_ERROR, ERROR)
-  case ATransactionType of
-    ttCredito: HistoricalCode := HISTORICAL_CODE_CREDIT;
-    ttDebito : HistoricalCode := HISTORICAL_CODE_DEBIT;
-  end;
 
   // inicar operação chamando o endpoint operation
   // json enviado no body da transacao
   JSonRequest := SO;
   JSonRequest.S['requestingService'] := 'ce-installment-amortization';
   JSonRequest.S['accountNumber']     := AAccountNumber;
-  JSonRequest.S['description']       := TTranscationTypeHelper.ToString(ATransactionType);
+  JSonRequest.S['description']       := TTransactionTypeHelper.ToString(ATransactionType);
 
   JsonString := JSonRequest.AsJSon;
 
@@ -218,7 +219,7 @@ begin
       JSonRequest := SO;
       JSonRequest.S['dateMovement']     := FormatDateTime('YYYY-MM-DD', ADateMovement);
       JSonRequest.S['dateType']         := 'D_0';
-      JSonRequest.S['historicalCode']   := HistoricalCode;
+      JSonRequest.S['historicalCode']   := AHistoricalCode;
       JSonRequest.S['originSystem']     := ORIGIN_SYSTEM;
       JSonRequest.S['documentNumber']   := ADocumentNumber;
       JSonRequest.I['channel']          := 0;
@@ -278,6 +279,7 @@ function TTransactionService.Credit(AAccountNumber, AOriginAgencyCode, ADocument
 begin
   Result := Self.Movement(
     ttCredito,
+    HISTORICAL_CODE_CREDIT,
     AAccountNumber,
     AOriginAgencyCode,
     ADocumentNumber,
@@ -293,6 +295,7 @@ function TTransactionService.Debit(AAccountNumber, AOriginAgencyCode, ADocumentN
 begin
   Result := Self.Movement(
     ttDebito,
+    HISTORICAL_CODE_DEBIT,
     AAccountNumber,
     AOriginAgencyCode,
     ADocumentNumber,
