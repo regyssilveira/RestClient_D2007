@@ -8,7 +8,7 @@ uses
 type
   TTransactionType = (ttCredito, ttDebito);
 
-  // delphi 2007 n„o possui helpers para record (enum), ent„o quebrar o galho utilizando isso
+  // delphi 2007 n√£o possui helpers para record (enum), ent√£o quebrar o galho utilizando isso
   TTransactionTypeHelper = record
     class function ToString(const AValue: TTransactionType): String; static;
     class function FromString(const AValue: String): TTransactionType; static;
@@ -43,6 +43,10 @@ type
       AUserCode: String; AValueMovement: Double; ADateMovement: TDateTime): String;
     function Debit(AAccountNumber, AOriginAgencyCode, ADocumentNumber, AComplement,
       AUserCode: String; AValueMovement: Double; ADateMovement: TDateTime): String;
+      
+    function GetOnLog: TLogEvent;
+    procedure SetOnLog(const Value: TLogEvent);
+    property OnLog: TLogEvent read GetOnLog write SetOnLog;
   end;
 
   TTransactionService = class(TInterfacedObject, ITransactionService)
@@ -57,7 +61,10 @@ type
     function Credit(AAccountNumber, AOriginAgencyCode, ADocumentNumber, AComplement,
       AUserCode: String; AValueMovement: Double; ADateMovement: TDateTime): String;
     function Debit(AAccountNumber, AOriginAgencyCode, ADocumentNumber, AComplement,
-      AUserCode: String; AValueMovement: Double; ADateMovement: TDateTime): String;      
+      AUserCode: String; AValueMovement: Double; ADateMovement: TDateTime): String;
+      
+    function GetOnLog: TLogEvent;
+    procedure SetOnLog(const Value: TLogEvent);
   end;
 
 implementation
@@ -77,7 +84,7 @@ begin
   if UpperCase(Trim(AValue)) = 'DEBIT' then
     Result := ttDebito
   else
-    raise Exception.CreateFmt('TransaÁ„o "%s" n„o reconhecida.', [AValue]);
+    raise Exception.CreateFmt('Transa√ß√£o "%s" n√£o reconhecida.', [AValue]);
 end;
 
 class function TTransactionTypeHelper.ToString(const AValue: TTransactionType): String;
@@ -95,6 +102,16 @@ end;
 constructor TTransactionService.Create(const ABaseURL, ATokenEndpoint, AClientId, AClientSecret: string);
 begin
   FClient := TRestClient.Create(ABaseURL, rtWinInet, ATokenEndpoint, AClientId, AClientSecret);
+end;
+
+function TTransactionService.GetOnLog: TLogEvent;
+begin
+  Result := FClient.OnLog;
+end;
+
+procedure TTransactionService.SetOnLog(const Value: TLogEvent);
+begin
+  FClient.OnLog := Value;
 end;
 
 function TTransactionService.GetSaldo(const AAccountNumber, ABankBranch, AOriginSystem: string): TBalanceDTO;
@@ -158,7 +175,7 @@ begin
     else
     begin
       raise Exception.Create(
-        'N„o foi possÌvel ler a resposta!' + sLineBreak +
+        'N√£o foi poss√≠vel ler a resposta!' + sLineBreak +
         'Json Resposta:' +
         JsonResponse.AsJSon(True)
       );
@@ -179,9 +196,9 @@ var
 begin
   // chamar o transaction operation
   // chamar o transaction movement
-  // se der erro ent„o chamar o reversal  (DK_ERROR, ORIGIN_ERROR, ERROR)
+  // se der erro ent√£o chamar o reversal  (DK_ERROR, ORIGIN_ERROR, ERROR)
 
-  // inicar operaÁ„o chamando o endpoint operation
+  // inicar opera√ß√£o chamando o endpoint operation
   // json enviado no body da transacao
   JSonRequest := SO;
   JSonRequest.S['requestingService'] := 'ce-installment-amortization';
@@ -211,10 +228,10 @@ begin
         ]);
       end;
 
-      // captura o operation id para utilizaÁ„o futura e retorno
+      // captura o operation id para utiliza√ß√£o futura e retorno
       Result := JsonResponse.S['sagaOperationId'];
 
-      // se operation ocorreu bem, chama o movement para a aÁ„o
+      // se operation ocorreu bem, chama o movement para a a√ß√£o
       // movement
       JSonRequest := SO;
       JSonRequest.S['dateMovement']     := FormatDateTime('YYYY-MM-DD', ADateMovement);
@@ -258,7 +275,7 @@ begin
         else
         begin
           raise Exception.Create(
-            'N„o foi possÌvel ler a resposta!' + sLineBreak +
+            'N√£o foi poss√≠vel ler a resposta!' + sLineBreak +
             'Json Resposta:' +
             JsonResponse.AsJSon(True)
           );
