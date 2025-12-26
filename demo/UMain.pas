@@ -84,7 +84,7 @@ end;
 procedure TFrmMain.BtnUATSaldoClick(Sender: TObject);
 var
   LService: ITransactionService;
-  LBalance: TBalanceDTO;
+  LBalance: IBalanceDTO;
 begin
   LService := TTransactionService.Create(UrlAPI, UrlToken, UsuarioWs, SenhaWs);
   LService.OnLog := Logar;
@@ -93,20 +93,16 @@ begin
     LBalance := LService.GetSaldo(ContaNumero, AgenciaNumero);
     if LBalance <> nil then
     begin
-      try
-        Memo1.Lines.Add('');
-        Memo1.Lines.Add('Dados lidos da resposta:');
-        Memo1.Lines.Add('balanceValue: '                 + FloatToStr(LBalance.BalanceValue));
-        //Memo1.Lines.Add('balanceBlockedCheck: '          + FloatToStr(LBalance.BalanceBlockedCheck));
-        //Memo1.Lines.Add('balanceBlockedAdministrative: ' + FloatToStr(LBalance.balanceBlockedAdministrative));
-        //Memo1.Lines.Add('balanceBlockedJudicial: '       + FloatToStr(LBalance.BalanceBlockedJudicial));
-        //Memo1.Lines.Add('balanceBlockedSpecial: '        + FloatToStr(LBalance.BalanceBlockedSpecial));
-        //Memo1.Lines.Add('balanceProvisioned: '           + FloatToStr(LBalance.BalanceProvisioned));
-        //Memo1.Lines.Add('valueLimit: '                   + FloatToStr(LBalance.ValueLimit));
-        Memo1.Lines.Add('netBalanceValue: '              + FloatToStr(LBalance.NetBalanceValue));
-      finally
-        LBalance.Free;
-      end;
+      Memo1.Lines.Add('');
+      Memo1.Lines.Add('Dados lidos da resposta:');
+      Memo1.Lines.Add('balanceValue: '                 + FloatToStr(LBalance.BalanceValue));
+      //Memo1.Lines.Add('balanceBlockedCheck: '          + FloatToStr(LBalance.BalanceBlockedCheck));
+      //Memo1.Lines.Add('balanceBlockedAdministrative: ' + FloatToStr(LBalance.balanceBlockedAdministrative));
+      //Memo1.Lines.Add('balanceBlockedJudicial: '       + FloatToStr(LBalance.BalanceBlockedJudicial));
+      //Memo1.Lines.Add('balanceBlockedSpecial: '        + FloatToStr(LBalance.BalanceBlockedSpecial));
+      //Memo1.Lines.Add('balanceProvisioned: '           + FloatToStr(LBalance.BalanceProvisioned));
+      //Memo1.Lines.Add('valueLimit: '                   + FloatToStr(LBalance.ValueLimit));
+      Memo1.Lines.Add('netBalanceValue: '              + FloatToStr(LBalance.NetBalanceValue));
     end;
   except
     on E: Exception do
@@ -120,11 +116,11 @@ end;
 procedure TFrmMain.BtnUATCREDITClick(Sender: TObject);
 var
   LService: ITransactionService;
-  LTransaction: TTransactionDTO;
+  LTransaction: ITransactionDTO;
   NumeroDocumento: String;
 begin
   Memo1.Lines.Add('');
-  Memo1.Lines.Add('Operação de CREDITO');
+  Memo1.Lines.Add('Operao de CREDITO');
 
   // numero fake para testes
   NumeroDocumento := FormatDateTime('YYYYMMDDHHMMSSZZZ', NOW);
@@ -145,11 +141,7 @@ begin
 
     if LTransaction <> nil then
     begin
-      try
-        Memo1.Lines.Add('SagaOperationId: ' + LTransaction.SagaOperationId + ', OperationNumber: ' + LTransaction.OperationNumber);
-      finally
-        LTransaction.Free;
-      end;
+      Memo1.Lines.Add('SagaOperationId: ' + LTransaction.SagaOperationId + ', OperationNumber: ' + LTransaction.OperationNumber);
     end;
   except
     on E: Exception do
@@ -166,11 +158,11 @@ end;
 procedure TFrmMain.BtnUATDebitClick(Sender: TObject);
 var
   LService: ITransactionService;
-  LTransaction: TTransactionDTO;
+  LTransaction: ITransactionDTO;
   NumeroDocumento: String;  
 begin
   Memo1.Lines.Add('');
-  Memo1.Lines.Add('Operação de DEBITO');
+  Memo1.Lines.Add('Operao de DEBITO');
 
   // numero fake para testes
   NumeroDocumento := FormatDateTime('YYYYMMDDHHMMSSZZZ', NOW);
@@ -191,11 +183,7 @@ begin
 
     if LTransaction <> nil then
     begin
-      try
-        Memo1.Lines.Add('SagaOperationId: ' + LTransaction.SagaOperationId + ', OperationNumber: ' + LTransaction.OperationNumber);
-      finally
-        LTransaction.Free;
-      end;
+      Memo1.Lines.Add('SagaOperationId: ' + LTransaction.SagaOperationId + ', OperationNumber: ' + LTransaction.OperationNumber);
     end;
   except
     on E: Exception do
@@ -210,4 +198,3 @@ begin
 end;
 
 end.
-

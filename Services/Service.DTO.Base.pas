@@ -6,10 +6,12 @@ uses
   SysUtils, Classes, TypInfo, SuperObject;
 
 type
-  TJsonDTO = class(TPersistent)
+  {$M+}
+  TJsonDTO = class(TInterfacedObject)
   public
     procedure FromJson(AJson: ISuperObject); virtual;
   end;
+  {$M-}
 
 implementation
 
