@@ -11,6 +11,7 @@ object FrmMain: TFrmMain
   Font.Name = 'Tahoma'
   Font.Style = []
   OldCreateOrder = False
+  OnCreate = FormCreate
   PixelsPerInch = 96
   TextHeight = 13
   object GroupBox1: TGroupBox
@@ -70,6 +71,8 @@ object FrmMain: TFrmMain
     TabOrder = 1
     object TabSheet1: TTabSheet
       Caption = 'Opera'#231#245'es'
+      ExplicitLeft = 0
+      ExplicitTop = 0
       ExplicitWidth = 281
       ExplicitHeight = 165
       object Memo1: TMemo
@@ -82,17 +85,11 @@ object FrmMain: TFrmMain
         Lines.Strings = (
           'Memo1')
         TabOrder = 0
-        ExplicitLeft = 8
-        ExplicitTop = 184
-        ExplicitWidth = 846
-        ExplicitHeight = 412
       end
     end
     object TabSheet2: TTabSheet
       Caption = 'Logs'
       ImageIndex = 1
-      ExplicitWidth = 281
-      ExplicitHeight = 165
       object Memo2: TMemo
         AlignWithMargins = True
         Left = 3
@@ -103,10 +100,6 @@ object FrmMain: TFrmMain
         Lines.Strings = (
           'Memo1')
         TabOrder = 0
-        ExplicitLeft = 8
-        ExplicitTop = 184
-        ExplicitWidth = 846
-        ExplicitHeight = 412
       end
     end
   end

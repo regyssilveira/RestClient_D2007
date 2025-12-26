@@ -363,29 +363,22 @@ function TTransactionService.GetSaldo(const AAccountNumber, ABankBranch: string)
 var
   LResponse: IRestResponse;
 begin
-  Result := TBalanceDTO.Create;
-  try
-    LResponse := FClient.CreateRequest
-      .Resource('/account/balance')
-      .AddHeader('accountNumber', AAccountNumber)
-      .AddHeader('bankBranch', ABankBranch)
-      .AddHeader('originSystem', ORIGIN_SYSTEM)
-      .Execute(rmGET);
+  Result := nil;
 
-    if LResponse.StatusCode = 200 then
-      Result.FromJson(LResponse.ContentAsJson)
-    else
-      raise Exception.CreateFmt('Erro ao consultar saldo. Status: %d. Erro: %s', [LResponse.StatusCode, LResponse.Content]);
-  except
-    // Result is an interface, it will be automatically released if exception occurs before return?
-    // Actually, TInterfacedObject.AfterConstruction has RefCount=0.
-    // Result := ... assigns to interface, RefCount=1.
-    // If exception raised, Result (interface) goes out of scope?
-    // In function, 'Result' is a variable.
-    // If exception raised, does Result get cleared?
-    // Regardless, we should NOT call Result.Free.
-    raise;
-  end;
+  LResponse := FClient.CreateRequest
+    .Resource('/account/balance')
+    .AddHeader('accountNumber', AAccountNumber)
+    .AddHeader('bankBranch', ABankBranch)
+    .AddHeader('originSystem', ORIGIN_SYSTEM)
+    .Execute(rmGET);
+
+  if LResponse.StatusCode = 200 then
+  begin
+    Result := TBalanceDTO.Create;
+    Result.FromJson(LResponse.ContentAsJson)
+  end
+  else
+    raise Exception.CreateFmt('Erro ao consultar saldo. Status: %d. Erro: %s', [LResponse.StatusCode, LResponse.Content]);
 end;
 
 function TTransactionService.Reversal(AAccountNumber, AComplement, AOperationIdSource, AUserCode: String; ADateMovement: TDateTime): ITransactionDTO;

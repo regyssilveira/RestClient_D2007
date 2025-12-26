@@ -22,6 +22,7 @@ type
     procedure BtnUATCREDITClick(Sender: TObject);
     procedure BtnUATSaldoClick(Sender: TObject);
     procedure BtnUATDebitClick(Sender: TObject);
+    procedure FormCreate(Sender: TObject);
   private
     { Private declarations }
   public
@@ -113,6 +114,11 @@ begin
   end;
 end;
 
+procedure TFrmMain.FormCreate(Sender: TObject);
+begin
+  ReportMemoryLeaksOnShutdown := DebugHook <> 0;
+end;
+
 procedure TFrmMain.BtnUATCREDITClick(Sender: TObject);
 var
   LService: ITransactionService;
@@ -140,9 +146,7 @@ begin
     );
 
     if LTransaction <> nil then
-    begin
       Memo1.Lines.Add('SagaOperationId: ' + LTransaction.SagaOperationId + ', OperationNumber: ' + LTransaction.OperationNumber);
-    end;
   except
     on E: Exception do
     begin
@@ -182,9 +186,7 @@ begin
     );
 
     if LTransaction <> nil then
-    begin
       Memo1.Lines.Add('SagaOperationId: ' + LTransaction.SagaOperationId + ', OperationNumber: ' + LTransaction.OperationNumber);
-    end;
   except
     on E: Exception do
     begin
