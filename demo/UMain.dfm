@@ -90,6 +90,10 @@ object FrmMain: TFrmMain
     object TabSheet2: TTabSheet
       Caption = 'Logs'
       ImageIndex = 1
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       object Memo2: TMemo
         AlignWithMargins = True
         Left = 3

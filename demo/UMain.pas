@@ -88,6 +88,9 @@ var
   LService: ITransactionService;
   LBalance: IBalanceDTO;
 begin
+  Memo1.Lines.Add('');
+  Memo1.Lines.Add('Operaçao de SALDO');
+
   LService := TTransactionService.Create(UrlAPI, UrlToken, UsuarioWs, SenhaWs);
   LService.OnLog := Logar;
 
@@ -95,7 +98,6 @@ begin
     LBalance := LService.GetSaldo(ContaNumero, AgenciaNumero);
     if LBalance <> nil then
     begin
-      Memo1.Lines.Add('');
       Memo1.Lines.Add('Dados lidos da resposta:');
       Memo1.Lines.Add('balanceValue: '                 + FloatToStr(LBalance.BalanceValue));
       //Memo1.Lines.Add('balanceBlockedCheck: '          + FloatToStr(LBalance.BalanceBlockedCheck));
@@ -127,11 +129,10 @@ var
   NumeroDocumento: String;
 begin
   Memo1.Lines.Add('');
-  Memo1.Lines.Add('Operao de CREDITO');
+  Memo1.Lines.Add('Operaçao de CREDITO');
 
   // numero fake para testes
   NumeroDocumento := FormatDateTime('YYYYMMDDHHMMSSZZZ', NOW);
-
   try
     LService := TTransactionService.Create(UrlAPI, UrlToken, UsuarioWs, SenhaWs);
     LService.OnLog := Logar;
@@ -167,11 +168,10 @@ var
   NumeroDocumento: String;  
 begin
   Memo1.Lines.Add('');
-  Memo1.Lines.Add('Operao de DEBITO');
+  Memo1.Lines.Add('Operaçao de DEBITO');
 
   // numero fake para testes
   NumeroDocumento := FormatDateTime('YYYYMMDDHHMMSSZZZ', NOW);
-
   try
     LService := TTransactionService.Create(UrlAPI, UrlToken, UsuarioWs, SenhaWs);
     LService.OnLog := Logar;
