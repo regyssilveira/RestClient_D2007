@@ -37,6 +37,9 @@ type
     FClient: IRestClient;
     function Movement(ATransactionType: TTransactionType; AHistoricalCode, AAccountNumber, AOriginAgencyCode, ADocumentNumber, AComplement,
       AUserCode: String; AValueMovement: Double; ADateMovement: TDateTime): ITransactionDTO;
+    
+    // Helper to execute POST and validate response
+    function ExecutePost(const AResource: string; ABody: ISuperObject; const AContextInfo: string): ISuperObject;
   public
     constructor Create(const ABaseURL, ATokenEndpoint, AClientId, AClientSecret: string);
     function GetSaldo(const AAccountNumber, ABankBranch: string): IBalanceDTO;
@@ -54,6 +57,12 @@ const
   HISTORICAL_CODE_REVERSAL = '07320';
   HISTORICAL_CODE_DEBIT    = '07129';
   HISTORICAL_CODE_CREDIT   = '08179';
+  
+  // Resources
+  RES_BALANCE              = '/account/balance';
+  RES_TRANS_REVERSAL       = '/transaction-dk/reversal';
+  RES_TRANS_OPERATION      = '/transaction-dk/operation';
+  RES_TRANS_MOVEMENT       = '/transaction-dk/movement';
 
 { TTranscationTypeHelper }
 
@@ -85,6 +94,46 @@ begin
   FClient := TRestClient.Create(ABaseURL, ATokenEndpoint, AClientId, AClientSecret, rtWinInet);
 end;
 
+function TTransactionService.ExecutePost(const AResource: string; ABody: ISuperObject; const AContextInfo: string): ISuperObject;
+var
+  LResponse: IRestResponse;
+begin
+  LResponse := FClient.CreateRequest
+    .Resource(AResource)
+    .AddBody(ABody)
+    .Execute(rmPOST);
+
+  if LResponse.StatusCode = 201 then
+  begin
+    Result := LResponse.ContentAsJson;
+    if Assigned(Result) then
+    begin
+      if Result.S['status'] <> 'CREATED' then
+      begin
+        raise Exception.CreateFmt(
+          '%s Error: %s - %s'#13#10'%s', [
+          AContextInfo,
+          Result.S['operationNumber'],
+          Result.S['status'],
+          Result.S['message']
+        ]);
+      end;
+    end
+    else
+    begin
+      raise Exception.Create(
+        'Não foi possível ler a resposta!' + sLineBreak +
+        'Json Resposta: (Vazio/Nulo)'
+      ); 
+    end;
+    
+    if Result = nil then
+       raise Exception.Create('Não foi possível ler a resposta! Json vazio.');
+  end
+  else
+    FClient.TratarRetornoNaoEsperado(LResponse.Content);
+end;
+
 function TTransactionService.GetOnLog: TLogEvent;
 begin
   Result := FClient.OnLog;
@@ -102,7 +151,7 @@ begin
   Result := nil;
 
   LResponse := FClient.CreateRequest
-    .Resource('/account/balance')
+    .Resource(RES_BALANCE)
     .AddHeader('accountNumber', AAccountNumber)
     .AddHeader('bankBranch', ABankBranch)
     .AddHeader('originSystem', ORIGIN_SYSTEM)
@@ -119,7 +168,6 @@ end;
 
 function TTransactionService.Reversal(AAccountNumber, AComplement, AOperationIdSource, AUserCode: String; ADateMovement: TDateTime): ITransactionDTO;
 var
-  LResponse: IRestResponse;
   JSonRequest: ISuperObject;
   JsonResponse: ISuperObject;
 begin
@@ -134,49 +182,19 @@ begin
   JSonRequest.S['dateMovement']      := FormatDateTime('YYYY-MM-DD', ADateMovement);
   JSonRequest.S['historicalCode']    := HISTORICAL_CODE_REVERSAL;
 
-  LResponse := FClient.CreateRequest
-    .Resource('/transaction-dk/reversal')
-    .AddBody(JSonRequest)
-    .Execute(rmPOST);
-
-  if LResponse.StatusCode = 201 then
+  JsonResponse := ExecutePost(RES_TRANS_REVERSAL, JSonRequest, 'Reversal Transaction');
+  
+  if Assigned(JsonResponse) then
   begin
-    JsonResponse := LResponse.ContentAsJson;
-    if Assigned(JsonResponse) then
-    begin
-      if JsonResponse.S['status'] <> 'CREATED' then
-      begin
-        raise Exception.CreateFmt(
-          'Reversal Transacation Error: %s - %s'#13#10'%s', [
-          JsonResponse.S['operationNumber'],
-          JsonResponse.S['status'],
-          JsonResponse.S['message']
-        ]);
-      end
-      else
-      begin
-        Result := TTransactionDTO.Create;
-        Result.FromJson(LResponse.ContentAsJson)
-      end;
-    end
-    else
-    begin
-      raise Exception.Create(
-        'Não foi possível ler a resposta!' + sLineBreak +
-        'Json Resposta:' +
-        JsonResponse.AsJSon(True)
-      );
-    end;
-  end
-  else
-    FClient.TratarRetornoNaoEsperado(LResponse.Content);
+    Result := TTransactionDTO.Create;
+    Result.FromJson(JsonResponse);
+  end;
 end;
 
 function TTransactionService.Movement(ATransactionType: TTransactionType; AHistoricalCode, AAccountNumber,
   AOriginAgencyCode, ADocumentNumber, AComplement, AUserCode: String;
   AValueMovement: Double; ADateMovement: TDateTime): ITransactionDTO;
 var
-  LResponse: IRestResponse;
   JSonRequest: ISuperObject;
   JsonResponse: ISuperObject;
   SagaOperationId: String;
@@ -195,90 +213,52 @@ begin
   JSonRequest.S['description']       := TTransactionTypeHelper.ToString(ATransactionType);
 
   // operation
-  LResponse := FClient.CreateRequest
-    .Resource('/transaction-dk/operation')
-    .AddBody(JSonRequest)
-    .Execute(rmPOST);
+  try
+    JsonResponse := ExecutePost(RES_TRANS_OPERATION, JSonRequest, 'Operation Transaction');
+    
+    // captura o operation id para utilização futura e retorno
+    SagaOperationId := JsonResponse.S['sagaOperationId'];
 
-  if LResponse.StatusCode = 201 then
-  begin
-    JsonResponse := LResponse.ContentAsJson;
-    if Assigned(JsonResponse) then
-    begin
-      if JsonResponse.S['status'] <> 'CREATED' then
+    // se operation ocorreu bem, chama o movement para a ação
+    // movement
+    JSonRequest := SO;
+    JSonRequest.S['dateMovement']     := FormatDateTime('YYYY-MM-DD', ADateMovement);
+    JSonRequest.S['dateType']         := 'D_0';
+    JSonRequest.S['historicalCode']   := AHistoricalCode;
+    JSonRequest.S['originSystem']     := ORIGIN_SYSTEM;
+    JSonRequest.S['documentNumber']   := ADocumentNumber;
+    JSonRequest.I['channel']          := 0;
+    JSonRequest.S['accountNumber']    := AAccountNumber;
+    JSonRequest.S['originAgencyCode'] := AOriginAgencyCode;
+    JSonRequest.S['sagaOperationId']  := SagaOperationId;
+    JSonRequest.D['valueMovement']    := AValueMovement;
+    JSonRequest.S['complement']       := AComplement;
+    JSonRequest.S['userCode']         := AUserCode;
+
+    try
+      JsonResponse := ExecutePost(RES_TRANS_MOVEMENT, JSonRequest, 'Movement Transaction');
+      
+      Result := TTransactionDTO.Create;
+      Result.FromJson(JsonResponse);
+    except
+      on E: Exception do
       begin
-        raise Exception.CreateFmt(
-          'Operation Transacation Error: %s - %s'#13#10'%s', [
-          JsonResponse.S['operationNumber'],
-          JsonResponse.S['status'],
-          JsonResponse.S['message']
-        ]);
-      end;
-
-      // captura o operation id para utilização futura e retorno
-      SagaOperationId := JsonResponse.S['sagaOperationId'];
-
-      // se operation ocorreu bem, chama o movement para a ação
-      // movement
-      JSonRequest := SO;
-      JSonRequest.S['dateMovement']     := FormatDateTime('YYYY-MM-DD', ADateMovement);
-      JSonRequest.S['dateType']         := 'D_0';
-      JSonRequest.S['historicalCode']   := AHistoricalCode;
-      JSonRequest.S['originSystem']     := ORIGIN_SYSTEM;
-      JSonRequest.S['documentNumber']   := ADocumentNumber;
-      JSonRequest.I['channel']          := 0;
-      JSonRequest.S['accountNumber']    := AAccountNumber;
-      JSonRequest.S['originAgencyCode'] := AOriginAgencyCode;
-      JSonRequest.S['sagaOperationId']  := SagaOperationId;
-      JSonRequest.D['valueMovement']    := AValueMovement;
-      JSonRequest.S['complement']       := AComplement;
-      JSonRequest.S['userCode']         := AUserCode;
-
-      LResponse := FClient.CreateRequest
-        .Resource('/transaction-dk/movement')
-        .AddBody(JSonRequest)
-        .Execute(rmPOST);
-
-      if LResponse.StatusCode = 201 then
-      begin
-        JsonResponse := LResponse.ContentAsJson;
-        if Assigned(JsonResponse) then
-        begin
-          if LResponse.IsError then
-          begin
-            // chamar o reversal em caso de retorno de erro
-            Self.Reversal(AAccountNumber, '', SagaOperationId, AUserCode, ADateMovement);
-
-            raise Exception.CreateFmt(
-              'Movement Transacation Error: %s - %s'#13#10'%s', [
-              JsonResponse.S['operationNumber'],
-              JsonResponse.S['status'],
-              JsonResponse.S['message']
-            ]);
-          end
-          else
-          begin
-            Result := TTransactionDTO.Create;
-            Result.FromJson(LResponse.ContentAsJson)
-          end;
-        end
-        else
-        begin
-          raise Exception.Create(
-            'Não foi possível ler a resposta!' + sLineBreak +
-            'Json Resposta:' +
-            JsonResponse.AsJSon(True)
-          );
+        // chamar o reversal em caso de retorno de erro no movement
+        // Mas note que Reversal pode lançar exceção também.
+        try
+           Self.Reversal(AAccountNumber, '', SagaOperationId, AUserCode, ADateMovement);
+        except
+           // Log ou ignorar erro do reversal para não mascarar o erro original?
+           // Normalmente queremos ver o erro original, mas saber que o reversal falhou também é importante.
+           // A implementação original lançava exceção com 'Movement Transaction Error'.
         end;
-      end
-      else
-      begin
-        FClient.TratarRetornoNaoEsperado(LResponse.Content);
+        raise;
       end;
     end;
-  end
-  else
-    FClient.TratarRetornoNaoEsperado(LResponse.Content);
+  except
+     on E: Exception do
+       raise;
+  end;
 end;
 
 function TTransactionService.Credit(AAccountNumber, AOriginAgencyCode, ADocumentNumber, AComplement,

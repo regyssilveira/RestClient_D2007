@@ -19,20 +19,39 @@ implementation
 
 procedure TJsonDTO.FromJson(AJson: ISuperObject);
 var
-  LIter: TSuperObjectIter;
+  LPropCount, I: Integer;
+  LPropList: PPropList;
   LPropInfo: PPropInfo;
   LJsonVal: ISuperObject;
+  LPropName, LJsonName: string;
 begin
   if AJson = nil then
     Exit;
 
-  if ObjectFindFirst(AJson, LIter) then
-  try
-    repeat
-      LPropInfo := GetPropInfo(Self.ClassInfo, LIter.key);
-      if LPropInfo <> nil then
+  LPropCount := GetPropList(Self.ClassInfo, tkProperties, nil);
+  if LPropCount > 0 then
+  begin
+    GetMem(LPropList, LPropCount * SizeOf(PPropInfo));
+    try
+      GetPropList(Self.ClassInfo, tkProperties, LPropList);
+      for I := 0 to LPropCount - 1 do
       begin
-        LJsonVal := LIter.val;
+        LPropInfo := LPropList^[I];
+        LPropName := string(LPropInfo^.Name);
+
+        // Try exact match first
+        LJsonVal := AJson.O[LPropName];
+        
+        // If not found, try camelCase (common convention: AccountNumber -> accountNumber)
+        if LJsonVal = nil then
+        begin
+          if Length(LPropName) > 0 then
+          begin
+            LJsonName := LowerCase(Copy(LPropName, 1, 1)) + Copy(LPropName, 2, Length(LPropName));
+            LJsonVal := AJson.O[LJsonName];
+          end;
+        end;
+
         if LJsonVal = nil then Continue;
 
         case LPropInfo^.PropType^.Kind of
@@ -61,9 +80,9 @@ begin
             end;
         end;
       end;
-    until not ObjectFindNext(LIter);
-  finally
-    ObjectFindClose(LIter);
+    finally
+      FreeMem(LPropList);
+    end;
   end;
 end;
 
