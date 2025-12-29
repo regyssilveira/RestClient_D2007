@@ -24,10 +24,8 @@ type
     ['{B2A99E3D-2F8C-49D3-8E56-7B8C9A0F1E2D}']
     function GetSaldo(const AAccountNumber, ABankBranch: string): IBalanceDTO;
     function Reversal(AAccountNumber, AComplement, AOperationIdSource, AUserCode: String; ADateMovement: TDateTime): ITransactionDTO;
-    function Credit(AAccountNumber, AOriginAgencyCode, ADocumentNumber, AComplement,
-      AUserCode: String; AValueMovement: Double; ADateMovement: TDateTime): ITransactionDTO;
-    function Debit(AAccountNumber, AOriginAgencyCode, ADocumentNumber, AComplement,
-      AUserCode: String; AValueMovement: Double; ADateMovement: TDateTime): ITransactionDTO;
+    function Credit(AAccountNumber, AOriginAgencyCode, ADocumentNumber, AComplement, AUserCode: String; AValueMovement: Double; ADateMovement: TDateTime): ITransactionDTO;
+    function Debit(AAccountNumber, AOriginAgencyCode, ADocumentNumber, AComplement, AUserCode: String; AValueMovement: Double; ADateMovement: TDateTime): ITransactionDTO;
 
     function GetOnLog: TLogEvent;
     procedure SetOnLog(const Value: TLogEvent);
@@ -43,10 +41,8 @@ type
     constructor Create(const ABaseURL, ATokenEndpoint, AClientId, AClientSecret: string);
     function GetSaldo(const AAccountNumber, ABankBranch: string): IBalanceDTO;
     function Reversal(AAccountNumber, AComplement, AOperationIdSource, AUserCode: String; ADateMovement: TDateTime): ITransactionDTO;
-    function Credit(AAccountNumber, AOriginAgencyCode, ADocumentNumber, AComplement,
-      AUserCode: String; AValueMovement: Double; ADateMovement: TDateTime): ITransactionDTO;
-    function Debit(AAccountNumber, AOriginAgencyCode, ADocumentNumber, AComplement,
-      AUserCode: String; AValueMovement: Double; ADateMovement: TDateTime): ITransactionDTO;
+    function Credit(AAccountNumber, AOriginAgencyCode, ADocumentNumber, AComplement, AUserCode: String; AValueMovement: Double; ADateMovement: TDateTime): ITransactionDTO;
+    function Debit(AAccountNumber, AOriginAgencyCode, ADocumentNumber, AComplement, AUserCode: String; AValueMovement: Double; ADateMovement: TDateTime): ITransactionDTO;
       
     function GetOnLog: TLogEvent;
     procedure SetOnLog(const Value: TLogEvent);
