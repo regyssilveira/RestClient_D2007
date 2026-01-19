@@ -8,9 +8,8 @@ uses
 type
   {$M+}
   TJsonDTO = class(TInterfacedObject)
-  protected
-    function GetItemClass(const APropName: string): TClass; virtual;
   public
+    function GetItemClass(const APropName: string): TClass; virtual;
     procedure FromJson(AJson: ISuperObject); virtual;
   end;
   {$M-}
@@ -71,7 +70,18 @@ begin
           tkFloat:
             begin
               if LJsonVal.DataType = stString then
-                SetFloatProp(Self, LPropInfo, StrToFloatDef(StringReplace(LJsonVal.AsString, '.', DecimalSeparator, [rfReplaceAll]), 0.0))
+              begin
+                if (Length(LJsonVal.AsString) = 10) and (LJsonVal.AsString[5] = '-') then
+                begin
+                  try
+                    SetFloatProp(Self, LPropInfo, EncodeDate(StrToInt(Copy(LJsonVal.AsString, 1, 4)), StrToInt(Copy(LJsonVal.AsString, 6, 2)), StrToInt(Copy(LJsonVal.AsString, 9, 2))));
+                  except
+                    SetFloatProp(Self, LPropInfo, 0.0);
+                  end;
+                end
+                else
+                  SetFloatProp(Self, LPropInfo, StrToFloatDef(StringReplace(LJsonVal.AsString, '.', DecimalSeparator, [rfReplaceAll]), 0.0));
+              end
               else
                 SetFloatProp(Self, LPropInfo, LJsonVal.AsDouble);
             end;
@@ -97,6 +107,8 @@ begin
                   LList := TObjectList(LObj);
                   LList.Clear;
                   LItemClass := GetItemClass(LPropName);
+                  // DEBUG
+                  // WriteLn('Property: ', LPropName, ', ItemClass: ', Pointer(LItemClass)); 
                   if (LItemClass <> nil) and LItemClass.InheritsFrom(TJsonDTO) then
                   begin
                     LArray := LJsonVal.AsArray;

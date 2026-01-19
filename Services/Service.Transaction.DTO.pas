@@ -1,4 +1,3 @@
-unit Service.Transaction.DTO;
 
 interface
 
@@ -313,8 +312,10 @@ type
     property Update: TDateTime read GetUpdate write SetUpdate;  
   end;
 
-  TExtractItemDTO = class(TJsonDTO, IExtractItemDTO)
-  private
+
+  TExtractItemDTO = class(TJsonDTO, IExtractItemDTO)
+
+  private
     FNumberMovement: Integer;
     FTypeOperation: Integer;
     FDateInclusion: TDateTime;
@@ -382,11 +383,16 @@ type
     property CodeCategory: string read GetCodeCategory write SetCodeCategory;
   end;
 
-  TExtractDTO = class(TJsonDTO, IExtractDTO)
-  private
+
+  TExtractDTO = class(TJsonDTO, IExtractDTO)
+
+  private
     FRecordOffset: Integer;
     FTotalRecords: Integer;
     FExtract: TObjectList;
+    FExtract: TObjectList;
+  public
+    function GetItemClass(const APropName: string): TClass; override;
   published
     constructor Create;
     destructor Destroy; override;
@@ -692,6 +698,16 @@ begin
 end;
 
 { TExtractDTO }
+
+function TExtractDTO.GetItemClass(const APropName: string): TClass;
+begin
+  WriteLn('TExtractDTO.GetItemClass called for: ', APropName);
+  // Default logic or specific check
+  if SameText(APropName, 'Extract') then
+    Result := TExtractItemDTO
+  else
+    Result := inherited GetItemClass(APropName);
+end;
 
 constructor TExtractDTO.Create;
 begin
