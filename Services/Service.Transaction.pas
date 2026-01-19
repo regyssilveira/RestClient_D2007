@@ -12,20 +12,13 @@ uses
   Service.Transaction.DTO;
 
 type
-  TTransactionType = (ttCredito, ttDebito);
-
-  // delphi 2007 não possui helpers para record (enum), então quebrar o galho utilizando isso
-  TTransactionTypeHelper = record
-    class function ToString(const AValue: TTransactionType): String; static;
-    class function FromString(const AValue: String): TTransactionType; static;
-  end;
-
   ITransactionService = interface
     ['{B2A99E3D-2F8C-49D3-8E56-7B8C9A0F1E2D}']
     function GetSaldo(const AAccountNumber, ABankBranch: string): IBalanceDTO;
+    function GetExtract(AAccountNumber, AAgency, AAgenciDigit: string; AStartDate, AEndDAte: TDateTime): IExtractDTO;
+    function GetTransactionBySagaId(const ASagaId: string): ISagaIdDTO;
     function Reversal(AAccountNumber, AComplement, AOperationIdSource, AUserCode: String; ADateMovement: TDateTime): ITransactionDTO;
-    function Credit(AAccountNumber, AOriginAgencyCode, ADocumentNumber, AComplement, AUserCode: String; AValueMovement: Double; ADateMovement: TDateTime): ITransactionDTO;
-    function Debit(AAccountNumber, AOriginAgencyCode, ADocumentNumber, AComplement, AUserCode: String; AValueMovement: Double; ADateMovement: TDateTime): ITransactionDTO;
+    function Movement(ADescription, AHistoricalCode, AAccountNumber, AOriginAgencyCode, ADocumentNumber, AComplement, AUserCode: String; AValueMovement: Double; ADateMovement: TDateTime): ITransactionDTO;
 
     function GetOnLog: TLogEvent;
     procedure SetOnLog(const Value: TLogEvent);
@@ -35,14 +28,14 @@ type
   TTransactionService = class(TInterfacedObject, ITransactionService)
   private
     FClient: IRestClient;
-    function Movement(ATransactionType: TTransactionType; AHistoricalCode, AAccountNumber, AOriginAgencyCode, ADocumentNumber, AComplement, AUserCode: String; AValueMovement: Double; ADateMovement: TDateTime): ITransactionDTO;
   public
     constructor Create(const ABaseURL, ATokenEndpoint, AClientId, AClientSecret: string);
     function GetSaldo(const AAccountNumber, ABankBranch: string): IBalanceDTO;
+    function GetExtract(AAccountNumber, AAgency, AAgenciDigit: string; AStartDate, AEndDAte: TDateTime): IExtractDTO;
+    function GetTransactionBySagaId(const ASagaId: string): ISagaIdDTO;
     function Reversal(AAccountNumber, AComplement, AOperationIdSource, AUserCode: String; ADateMovement: TDateTime): ITransactionDTO;
-    function Credit(AAccountNumber, AOriginAgencyCode, ADocumentNumber, AComplement, AUserCode: String; AValueMovement: Double; ADateMovement: TDateTime): ITransactionDTO;
-    function Debit(AAccountNumber, AOriginAgencyCode, ADocumentNumber, AComplement, AUserCode: String; AValueMovement: Double; ADateMovement: TDateTime): ITransactionDTO;
-      
+    function Movement(ADescription, AHistoricalCode, AAccountNumber, AOriginAgencyCode, ADocumentNumber, AComplement, AUserCode: String; AValueMovement: Double; ADateMovement: TDateTime): ITransactionDTO;
+
     function GetOnLog: TLogEvent;
     procedure SetOnLog(const Value: TLogEvent);
   end;
@@ -51,37 +44,14 @@ implementation
 
 const
   HISTORICAL_CODE_REVERSAL = '07320';
-  HISTORICAL_CODE_DEBIT    = '07129';
-  HISTORICAL_CODE_CREDIT   = '08179';  
-  
+
   // Resources
-  RES_BALANCE              = '/account/balance';
-  RES_TRANS_REVERSAL       = '/transaction-dk/reversal';
-  RES_TRANS_OPERATION      = '/transaction-dk/operation';
-  RES_TRANS_MOVEMENT       = '/transaction-dk/movement';
-
-{ TTranscationTypeHelper }
-
-class function TTransactionTypeHelper.FromString(const AValue: String): TTransactionType;
-begin
-  if UpperCase(Trim(AValue)) = 'CREDIT' then
-    Result := ttCredito
-  else
-  if UpperCase(Trim(AValue)) = 'DEBIT' then
-    Result := ttDebito
-  else
-    raise Exception.CreateFmt('Transação "%s" não reconhecida.', [AValue]);
-end;
-
-class function TTransactionTypeHelper.ToString(const AValue: TTransactionType): String;
-begin
-  case AValue of
-    ttCredito: Result := 'CREDIT';
-    ttDebito:  Result := 'DEBIT';
-  else
-    Result := 'UNKNOW';
-  end;
-end;
+  RES_BALANCE           = '/account/balance';
+  RES_EXTRACT           = '/account/extract';
+  RES_TRANS_REVERSAL    = '/transaction-dk/reversal';
+  RES_TRANS_OPERATION   = '/transaction-dk/operation';
+  RES_TRANS_MOVEMENT    = '/transaction-dk/movement';
+  RES_OPERATION_HISTORY = '/transaction-dk/operation-history';
 
 { TTransactionService }
 
@@ -120,6 +90,29 @@ begin
   end
   else
     raise Exception.CreateFmt('Erro ao consultar saldo. Status: %d. Erro: %s', [LResponse.StatusCode, LResponse.Content]);
+end;
+
+function TTransactionService.GetTransactionBySagaId(const ASagaId: string): ISagaIdDTO;
+var
+  LResponse: IRestResponse;
+begin
+  Result := nil;
+
+  if Trim(ASagaId) = '' then
+    raise Exception.Create('Identificador da transação (SagaId) não informado!');
+
+  LResponse := FClient.CreateRequest
+    .Resource(RES_OPERATION_HISTORY)
+    .AddParam('operationId', ASagaId)
+    .Execute(rmGET);
+
+  if LResponse.StatusCode = 200 then
+  begin
+    Result := tSagaIdDTO.Create;
+    Result.FromJson(LResponse.ContentAsJson)
+  end
+  else
+    raise Exception.CreateFmt('Erro ao consultar dados da transação (SagaId). Status: %d. Erro: %s', [LResponse.StatusCode, LResponse.Content]);
 end;
 
 function TTransactionService.Reversal(AAccountNumber, AComplement, AOperationIdSource, AUserCode: String; ADateMovement: TDateTime): ITransactionDTO;
@@ -177,7 +170,7 @@ begin
     FClient.TratarRetornoNaoEsperado(LResponse.Content);
 end;
 
-function TTransactionService.Movement(ATransactionType: TTransactionType; AHistoricalCode, AAccountNumber,
+function TTransactionService.Movement(ADescription, AHistoricalCode, AAccountNumber,
   AOriginAgencyCode, ADocumentNumber, AComplement, AUserCode: String;
   AValueMovement: Double; ADateMovement: TDateTime): ITransactionDTO;
 var
@@ -186,7 +179,7 @@ var
   JsonResponse: ISuperObject;
   SagaOperationId: String;
 begin
-  Result := nil;
+  Result := TTransactionDTO.Create;
 
   // chamar o transaction operation
   // chamar o transaction movement
@@ -197,7 +190,7 @@ begin
   JSonRequest := SO;
   JSonRequest.S['requestingService'] := 'ce-installment-amortization';
   JSonRequest.S['accountNumber']     := AAccountNumber;
-  JSonRequest.S['description']       := TTransactionTypeHelper.ToString(ATransactionType);
+  JSonRequest.S['description']       := ADescription;
 
   // operation
   LResponse := FClient.CreateRequest
@@ -249,22 +242,27 @@ begin
         JsonResponse := LResponse.ContentAsJson;
         if Assigned(JsonResponse) then
         begin
+          Result.FromJson(LResponse.ContentAsJson);
+
           if LResponse.IsError then
           begin
-            // chamar o reversal em caso de retorno de erro
-            Self.Reversal(AAccountNumber, '', SagaOperationId, AUserCode, ADateMovement);
+            Result.FromJson(JsonResponse);
+            if Pos('error on processing', Result.Message) >= 0 then
+            begin
+              raise Exception.Create(
+                'Erro no processamento da transação, não é possível continuar' + sLineBreak +
+                'Erro: ' +Result.Message
+              );
+            end;
 
+            // chamar o reversal em caso de retorno de erro e tenha sido processado
+            Self.Reversal(AAccountNumber, '', SagaOperationId, AUserCode, ADateMovement);
             raise Exception.CreateFmt(
               'Movement Transacation Error: %s - %s'#13#10'%s', [
               JsonResponse.S['operationNumber'],
               JsonResponse.S['status'],
               JsonResponse.S['message']
             ]);
-          end
-          else
-          begin
-            Result := TTransactionDTO.Create;
-            Result.FromJson(LResponse.ContentAsJson)
           end;
         end
         else
@@ -286,36 +284,41 @@ begin
     FClient.TratarRetornoNaoEsperado(LResponse.Content);
 end;
 
-function TTransactionService.Credit(AAccountNumber, AOriginAgencyCode, ADocumentNumber, AComplement,
-  AUserCode: String; AValueMovement: Double; ADateMovement: TDateTime): ITransactionDTO;
+function TTransactionService.GetExtract(AAccountNumber, AAgency, AAgenciDigit: string; AStartDate, AEndDAte: TDateTime): IExtractDTO;
+var
+  LResponse: IRestResponse;
+  JsonResponse: ISuperObject;
 begin
-  Result := Self.Movement(
-    ttCredito,
-    HISTORICAL_CODE_CREDIT,
-    AAccountNumber,
-    AOriginAgencyCode,
-    ADocumentNumber,
-    AComplement,
-    AUserCode,
-    AValueMovement,
-    ADateMovement
-  );
-end;
+  Result := TExtractDTO.Create;
 
-function TTransactionService.Debit(AAccountNumber, AOriginAgencyCode, ADocumentNumber, AComplement,
-  AUserCode: String; AValueMovement: Double; ADateMovement: TDateTime): ITransactionDTO;
-begin
-  Result := Self.Movement(
-    ttDebito,
-    HISTORICAL_CODE_DEBIT,
-    AAccountNumber,
-    AOriginAgencyCode,
-    ADocumentNumber,
-    AComplement,
-    AUserCode,
-    AValueMovement,
-    ADateMovement
-  );
+  LResponse := FClient.CreateRequest
+    .Resource(RES_EXTRACT)
+    .AddHeader('accountNumber', AAccountNumber)
+    .AddHeader('agency', AAgency)
+    .AddHeader('agencyDigit', AAgenciDigit)
+    .AddHeader('originSystem', ORIGIN_SYSTEM)
+    .AddHeader('startDate', FormatDateTime('YYYY-MM-DD', AStartDate))
+    .AddHeader('endDate', FormatDateTime('YYYY-MM-DD', AEndDAte))
+    .Execute(rmGET);
+
+  if LResponse.StatusCode = 200 then
+  begin
+    JsonResponse := LResponse.ContentAsJson;
+    if Assigned(JsonResponse) then
+    begin
+      Result.FromJson(LResponse.ContentAsJson)
+    end
+    else
+    begin
+      raise Exception.Create(
+        'Não foi possível ler a resposta!' + sLineBreak +
+        'Json Resposta:' +
+        JsonResponse.AsJSon(True)
+      );
+    end;
+  end
+  else
+    FClient.TratarRetornoNaoEsperado(LResponse.Content);
 end;
 
 end.
