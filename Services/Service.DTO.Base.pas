@@ -3,11 +3,13 @@ unit Service.DTO.Base;
 interface
 
 uses
-  SysUtils, Classes, TypInfo, SuperObject;
+  SysUtils, Classes, Contnrs, TypInfo, SuperObject;
 
 type
   {$M+}
   TJsonDTO = class(TInterfacedObject)
+  protected
+    function GetItemClass(const APropName: string): TClass; virtual;
   public
     procedure FromJson(AJson: ISuperObject); virtual;
   end;
@@ -24,6 +26,12 @@ var
   LPropInfo: PPropInfo;
   LJsonVal: ISuperObject;
   LPropName, LJsonName: string;
+  LObj: TObject;
+  LList: TObjectList;
+  LItemClass: TClass;
+  LArray: ISuperArray;
+  LItem: TJsonDTO;
+  J: Integer;
 begin
   if AJson = nil then
     Exit;
@@ -78,12 +86,45 @@ begin
               if GetTypeData(LPropInfo^.PropType^)^.BaseType^ = TypeInfo(Boolean) then
                 SetOrdProp(Self, LPropInfo, Integer(LJsonVal.AsBoolean));
             end;
+
+          tkClass:
+            begin
+              LObj := GetObjectProp(Self, LPropInfo);
+              if LObj <> nil then
+              begin
+                if (LObj is TObjectList) and (LJsonVal.DataType = stArray) then
+                begin
+                  LList := TObjectList(LObj);
+                  LList.Clear;
+                  LItemClass := GetItemClass(LPropName);
+                  if (LItemClass <> nil) and LItemClass.InheritsFrom(TJsonDTO) then
+                  begin
+                    LArray := LJsonVal.AsArray;
+                    for J := 0 to LArray.Length - 1 do
+                    begin
+                      LItem := TJsonDTO(LItemClass.Create);
+                      LItem.FromJson(LArray.O[J]);
+                      LList.Add(LItem);
+                    end;
+                  end;
+                end
+                else if LObj.InheritsFrom(TJsonDTO) then
+                begin
+                   TJsonDTO(LObj).FromJson(LJsonVal);
+                end;
+              end;
+            end;
         end;
       end;
     finally
       FreeMem(LPropList);
     end;
   end;
+end;
+
+function TJsonDTO.GetItemClass(const APropName: string): TClass;
+begin
+  Result := nil;
 end;
 
 end.
