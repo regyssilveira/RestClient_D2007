@@ -11,6 +11,8 @@ type
   public
     function GetItemClass(const APropName: string): TClass; virtual;
     procedure FromJson(AJson: ISuperObject); virtual;
+  protected
+    function ParseISO8601Date(const ADateStr: string): TDateTime;
   end;
   {$M-}
 
@@ -71,14 +73,8 @@ begin
             begin
               if LJsonVal.DataType = stString then
               begin
-                if (Length(LJsonVal.AsString) = 10) and (LJsonVal.AsString[5] = '-') then
-                begin
-                  try
-                    SetFloatProp(Self, LPropInfo, EncodeDate(StrToInt(Copy(LJsonVal.AsString, 1, 4)), StrToInt(Copy(LJsonVal.AsString, 6, 2)), StrToInt(Copy(LJsonVal.AsString, 9, 2))));
-                  except
-                    SetFloatProp(Self, LPropInfo, 0.0);
-                  end;
-                end
+                if (Length(LJsonVal.AsString) >= 10) and (LJsonVal.AsString[5] = '-') then
+                  SetFloatProp(Self, LPropInfo, ParseISO8601Date(LJsonVal.AsString))
                 else
                   SetFloatProp(Self, LPropInfo, StrToFloatDef(StringReplace(LJsonVal.AsString, '.', DecimalSeparator, [rfReplaceAll]), 0.0));
               end
@@ -137,6 +133,35 @@ end;
 function TJsonDTO.GetItemClass(const APropName: string): TClass;
 begin
   Result := nil;
+end;
+
+function TJsonDTO.ParseISO8601Date(const ADateStr: string): TDateTime;
+var
+  Year, Month, Day, Hour, Min, Sec, MSec: Word;
+begin
+  Result := 0;
+  try
+    if Length(ADateStr) >= 10 then
+    begin
+      Year := StrToInt(Copy(ADateStr, 1, 4));
+      Month := StrToInt(Copy(ADateStr, 6, 2));
+      Day := StrToInt(Copy(ADateStr, 9, 2));
+      Result := EncodeDate(Year, Month, Day);
+
+      if (Length(ADateStr) >= 19) and (UpCase(ADateStr[11]) = 'T') then
+      begin
+        Hour := StrToInt(Copy(ADateStr, 12, 2));
+        Min := StrToInt(Copy(ADateStr, 15, 2));
+        Sec := StrToInt(Copy(ADateStr, 18, 2));
+        MSec := 0;
+        if (Length(ADateStr) > 20) and (ADateStr[20] = '.') then
+             MSec := StrToIntDef(Copy(ADateStr, 21, 3), 0);
+        Result := Result + EncodeTime(Hour, Min, Sec, MSec);
+      end;
+    end;
+  except
+    Result := 0;
+  end;
 end;
 
 end.
